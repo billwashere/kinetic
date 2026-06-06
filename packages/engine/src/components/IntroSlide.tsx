@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from '@kinetic/renderer-compat';
 import { WatermarkLayer } from './WatermarkLayer';
 import type { LayerConfig } from '../engine/layer-config';
 

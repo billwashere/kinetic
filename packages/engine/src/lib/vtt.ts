@@ -30,7 +30,7 @@ function pad2(n: number): string {
  * timestamps align with the full stitched video rather than the content segment.
  *
  * @param cues        Subtitle cues from buildPageTimingSchedule()
- * @param fps         Must match the Remotion composition FPS constant
+ * @param fps         Must match the composition FPS constant
  * @param introOffset Frames to add to every timestamp (default: 0)
  */
 export function generateWebVTT(cues: SubtitleCue[], fps: number, introOffset = 0): string {

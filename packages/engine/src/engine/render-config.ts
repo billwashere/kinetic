@@ -2,7 +2,7 @@ import os from 'os';
 import { z } from 'zod';
 
 /**
- * Shared composition constants — used by both the Remotion entry point (index.tsx)
+ * Shared composition constants — used by both the composition entry point (index.tsx)
  * and the assemble script. Keeping them here prevents the two from drifting apart.
  *
  * Resolution and FPS are intentionally not env-configurable: changing them requires
@@ -84,9 +84,9 @@ const RenderConfigSchema = z.object({
   x264Preset: z.enum(PRESET_VALUES).default('medium'),
 
   /**
-   * Number of browser tabs Remotion opens in parallel to render frames.
+   * Number of headless browser tabs opened in parallel to render frames.
    * Higher values use more RAM and CPU but render faster on multi-core machines.
-   * Default: half the number of logical CPU cores (Remotion's own default).
+   * Default: half the number of logical CPU cores.
    * Set via RENDER_CONCURRENCY env var.
    */
   concurrency: z.coerce

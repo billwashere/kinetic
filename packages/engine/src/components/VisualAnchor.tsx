@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, useCurrentFrame } from '@kinetic/renderer-compat';
 
 interface BoundingBox {
   x: number;

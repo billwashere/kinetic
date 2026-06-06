@@ -19,7 +19,7 @@
         "src/index.tsx"
       ],
       "outputs": ["public/video-cache/**"],
-      "dependsOn": ["generate:audio"]
+      "dependsOn": ["generate:audio", "^build"]
     },
     "diff:check": {
       "inputs": ["generated/**/*.json"],
@@ -32,6 +32,7 @@
     },
     "build": {
       "dependsOn": ["^build"],
+      "inputs": ["src/**", "build.mjs", "tsconfig.build.json", "package.json"],
       "outputs": ["dist/**"]
     },
     "@kinetic/docs-portal#build": {
@@ -44,7 +45,7 @@
       "persistent": true
     },
     "test:unit": {
-      "inputs": ["src/**/*.test.ts", "src/**/*.ts"]
+      "inputs": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.ts", "src/**/*.tsx"]
     }
   }
 }

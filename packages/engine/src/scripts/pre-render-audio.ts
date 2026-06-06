@@ -54,7 +54,7 @@ function selectAdapter(): TTSAdapter {
 }
 
 // FIX #3: Measure real MP3 duration via ffprobe instead of hardcoding 3 seconds.
-// Accurate durations are required for Remotion to correctly time subtitle display.
+// Accurate durations are required by the renderer to correctly time subtitle display.
 async function getMp3DurationSeconds(filePath: string): Promise<number> {
   try {
     const { stdout } = await execa('ffprobe', [

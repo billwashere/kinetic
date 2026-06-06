@@ -9,6 +9,7 @@
     "assemble": "ts-node src/scripts/assemble.ts"
   },
   "dependencies": {
+    "@kinetic/renderer-compat": "workspace:*",
     "@playwright/test": "^1.40.0",
     "dotenv": "^16.3.1",
     "execa": "^9.6.1",

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Audio, interpolate, useCurrentFrame } from 'remotion';
+import { Audio, interpolate, useCurrentFrame } from '@kinetic/renderer-compat';
 import type { MusicConfig } from '../engine/layer-config';
 
 interface MusicLayerProps {

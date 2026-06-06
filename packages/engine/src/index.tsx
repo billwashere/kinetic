@@ -1,5 +1,5 @@
 import React from 'react';
-import { registerRoot, Composition, AbsoluteFill, useVideoConfig } from 'remotion';
+import { registerRoot, Composition, AbsoluteFill, useVideoConfig } from '@kinetic/renderer-compat';
 import { AnchorLayer } from './components/AnchorLayer';
 import { SubtitleLayer } from './components/SubtitleLayer';
 import { MusicLayer } from './components/MusicLayer';
@@ -13,7 +13,7 @@ import type { IntroProps } from './components/IntroSlide';
 import type { OutroProps } from './components/OutroSlide';
 
 /**
- * KineticVideo — the root Remotion composition.
+ * KineticVideo — the root KineticDocs composition.
  *
  * Renders in layers from back to front:
  *   1. Screen recording (the Playwright-captured webm — injected at render time)
@@ -74,7 +74,7 @@ export const KineticVideo: React.FC<KineticVideoProps> = ({
   );
 };
 
-// Default props are used by Remotion Studio for the interactive preview.
+// Default props shown in preview — overridden at render time by assemble.ts.
 // assemble.ts overrides every field with real per-page values at render time.
 const defaultProps: KineticVideoProps = {
   locale: 'en-US',

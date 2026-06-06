@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Img, interpolate, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Img, interpolate, useCurrentFrame, useVideoConfig } from '@kinetic/renderer-compat';
 import type { LayerConfig } from '../engine/layer-config';
 
 export interface OutroProps {

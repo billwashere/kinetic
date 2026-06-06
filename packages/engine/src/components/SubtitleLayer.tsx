@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, interpolate, useCurrentFrame } from 'remotion';
+import { AbsoluteFill, interpolate, useCurrentFrame } from '@kinetic/renderer-compat';
 import type { SubtitleCue } from '../lib/timing-schedule';
 import type { SubtitleStyle } from '../engine/layer-config';
 import { DEFAULT_SUBTITLE_STYLE } from '../engine/layer-config';

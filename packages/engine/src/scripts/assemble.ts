@@ -2,8 +2,8 @@ import crypto from 'crypto';
 import fs from 'fs-extra';
 import path from 'path';
 import dotenv from 'dotenv';
-import { bundle } from '@remotion/bundler';
-import { renderMedia, selectComposition } from '@remotion/renderer';
+import { bundle } from '@kinetic/renderer-compat/bundler';
+import { renderMedia, selectComposition } from '@kinetic/renderer-compat/renderer';
 import { loadRenderConfig, FPS, type RenderConfig } from '../engine/render-config';
 import { loadLayerConfig, type LayerConfig } from '../engine/layer-config';
 import { type AudioManifest } from '../lib/manifest-reader';
@@ -29,7 +29,7 @@ dotenv.config();
 
 const VERSION = process.env.DOCS_VERSION || 'v1.0';
 const ENTRY_POINT = path.join(process.cwd(), 'src/index.tsx');
-const BUNDLE_CACHE_PATH = path.join(process.cwd(), '.remotion-bundle-cache');
+const BUNDLE_CACHE_PATH = path.join(process.cwd(), '.rc-bundle-cache');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,11 +44,11 @@ async function getOrCreateBundle(): Promise<string> {
     const cached = await fs.readJson(sideCar);
     const mtime = (await fs.stat(ENTRY_POINT)).mtimeMs;
     if (cached.entryMtime === mtime && (await fs.pathExists(cached.bundleUrl))) {
-      console.log('⚡ Reusing cached Remotion bundle.');
+      console.log('⚡ Reusing cached renderer-compat bundle.');
       return cached.bundleUrl;
     }
   }
-  console.log('📦 Bundling Remotion entry point...');
+  console.log('📦 Bundling entry point (esbuild)...');
   const bundleUrl = await bundle({
     entryPoint: ENTRY_POINT,
     outDir: path.join(BUNDLE_CACHE_PATH, 'bundle'),

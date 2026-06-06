@@ -5,6 +5,12 @@
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@kinetic/renderer-compat": ["../../packages/renderer-compat/src/react-api.tsx"],
+      "@kinetic/renderer-compat/bundler": ["../../packages/renderer-compat/src/bundler.ts"],
+      "@kinetic/renderer-compat/renderer": ["../../packages/renderer-compat/src/renderer.ts"]
+    }
   }
 }
+

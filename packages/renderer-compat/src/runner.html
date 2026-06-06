@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!--
+      renderer-compat runner
+      ─────────────────────
+      Served by renderer.ts's local HTTP server.
+      Query params drive behaviour:
+        ?mode=list                                         → expose composition registry
+        ?mode=render&compositionId=X&frame=N&inputProps=  → render frame N
+    -->
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        overflow: hidden;
+        background: transparent;
+      }
+      #root {
+        position: relative;
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script src="bundle.js"></script>
+  </body>
+</html>

@@ -31,8 +31,8 @@ Playwright E2E tests
            │
            ▼
 ┌─────────────────────┐
-│  4. assemble        │  Remotion renders per-page MP4s with subtitles, anchors,
-│  (Remotion)         │  music, watermark. Stitches intro + content + outro.
+│  4. assemble        │ Renders per-page MP4s with subtitles, anchors, music,
+│  (renderer-compat)  │ watermark. Stitches intro + content + outro.
 └──────────┬──────────┘
            │
            ▼
@@ -49,6 +49,18 @@ Playwright E2E tests
 ```
 kinetic-docs-turbo/
 ├── layer-config.example.json     # Copy to layer-config.json — music, watermark, intro/outro
+├── packages/renderer-compat/     # @kinetic/renderer-compat — MIT-licensed Remotion shim
+│   ├── src/
+│   │   ├── react-api.tsx         # AbsoluteFill, Composition, useCurrentFrame, …
+│   │   ├── interpolate.ts        # Pure interpolate() with full Remotion API parity
+│   │   ├── jsx-traversal.ts      # Walks registerRoot's JSX → composition registry
+│   │   ├── bundler.ts            # esbuild-based bundle() — drop-in for @remotion/bundler
+│   │   ├── renderer.ts           # Playwright + FFmpeg renderMedia() / selectComposition()
+│   │   ├── http-server.ts        # Static file server for the bundle
+│   │   ├── ffmpeg.ts             # FFmpeg encode + health check
+│   │   └── runner.html           # HTML loaded once per Playwright page
+│   ├── README.md, LICENSE
+│   └── package.json
 ├── packages/engine/              # @kinetic/engine — the pipeline core
 │   ├── content/locales/          # Source of truth for all copy (en-US, ar-AE, …)
 │   ├── public/assets/            # Static assets: music files, logo images
@@ -91,7 +103,7 @@ kinetic-docs-turbo/
 │       │   ├── pre-render-audio.ts    # Step 2: TTS generation
 │       │   ├── assemble.ts            # Step 3: render + stitch + mix
 │       │   └── diff-check.ts          # CI: version diff report
-│       └── index.tsx                  # Remotion root — KineticDocs, KineticIntro, KineticOutro
+│       └── index.tsx                  # Composition root — KineticDocs, KineticIntro, KineticOutro
 └── apps/docs-portal/                  # @kinetic/docs-portal — Astro static site
     └── src/
         ├── layouts/DocLayout.astro    # Sidebar nav + version switcher
@@ -107,7 +119,8 @@ kinetic-docs-turbo/
 
 - Node.js ≥ 18
 - pnpm ≥ 8 (`npm install -g pnpm`)
-- ffmpeg in `$PATH` (required for `diff:check --visual`, `assemble`, and the music post-stitch step)
+- ffmpeg in `$PATH` — required for `assemble`, `diff:check --visual`, and the music post-stitch step
+- Playwright Chromium — installed once via `pnpm exec playwright install chromium`. Used for both E2E tests and frame rendering.
 
 ### Install
 
@@ -244,7 +257,7 @@ All render options have sensible defaults. Override via `.env`:
 | `RENDER_CODEC`            | `h264`    | Output codec: `h264`, `h265`, `vp9`, `vp8`                        |
 | `RENDER_CRF`              | `18`      | Quality vs file size (lower = better). h264/h265: 0–51; vp9: 0–63 |
 | `RENDER_PRESET`           | `medium`  | Encode speed for h264/h265: `ultrafast` → `veryslow`              |
-| `RENDER_CONCURRENCY`      | half CPUs | Parallel browser tabs Remotion opens                              |
+| `RENDER_CONCURRENCY`      | half CPUs | Parallel headless browser tabs used for rendering                 |
 | `RENDER_LEAD_IN_SECONDS`  | `1.0`     | Silence before first narration step                               |
 | `RENDER_LEAD_OUT_SECONDS` | `2.0`     | Silence after last narration step                                 |
 
@@ -435,7 +448,7 @@ Audio files are stored at `public/audio-objects/<sha256>.mp3` where the hash cov
 | Test runner & screen recorder | [Playwright](https://playwright.dev)                                                                                              |
 | Local TTS (default)           | [Kokoro-82M](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX) via [kokoro-js](https://www.npmjs.com/package/kokoro-js) |
 | Cloud TTS (optional)          | [OpenAI TTS](https://platform.openai.com/docs/guides/text-to-speech)                                                              |
-| Video compositor              | [Remotion](https://www.remotion.dev)                                                                                              |
+| Video compositor              | `@kinetic/renderer-compat` — MIT-licensed Remotion-compatible shim (Playwright + esbuild + FFmpeg). See `packages/renderer-compat/README.md`. |
 | Static site generator         | [Astro](https://astro.build)                                                                                                      |
 | Schema validation             | [Zod](https://zod.dev)                                                                                                            |
 | Monorepo orchestration        | [Turborepo](https://turbo.build) + [pnpm](https://pnpm.io)                                                                        |

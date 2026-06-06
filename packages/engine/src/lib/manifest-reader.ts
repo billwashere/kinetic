@@ -1,6 +1,6 @@
 /**
  * Manifest reader — extracts timing data from the audio manifest produced by
- * pre-render-audio.ts and converts it to frame counts for Remotion.
+ * pre-render-audio.ts and converts it to frame counts for the renderer.
  *
  * Kept as pure functions (no I/O) so it's trivially testable without mocking
  * the filesystem. The caller (assemble.ts) handles manifest loading.
@@ -57,7 +57,7 @@ export function secondsToFrames(seconds: number, fps: number): number {
  * @param manifest   The full audio manifest for a locale
  * @param locale     e.g. 'en-US'
  * @param pageId     e.g. 'create_project'
- * @param fps        Frames per second (must match the Remotion composition)
+ * @param fps        Frames per second (must match the composition FPS)
  * @param leadIn     Seconds of silence before the first step
  * @param leadOut    Seconds of silence after the last step
  * @param fallback   Frame count to use if no manifest entries exist for the page.

@@ -11,7 +11,7 @@ import type { MusicConfig, LayerConfig } from '../engine/layer-config';
  * Converts a public-relative asset path (e.g. "/assets/bg.mp3") to an
  * absolute filesystem path that FFmpeg can read.
  *
- * Public-relative paths start with "/" and are served from the Remotion bundle's
+ * Public-relative paths start with "/" and are served from the renderer-compat bundle's
  * public directory at runtime. On disk they live under `packages/engine/public/`.
  */
 export function resolvePublicPath(src: string, publicDir: string): string {

@@ -43,7 +43,7 @@ export interface PageTimingSchedule {
 }
 
 /**
- * The full set of props the Remotion composition receives.
+ * The full set of props the composition receives.
  * Defined here (not in index.tsx) so assemble.ts can import the type
  * and get compile-time checking when building inputProps.
  */
@@ -63,7 +63,7 @@ export interface KineticVideoProps {
 
 /**
  * Converts the audio manifest and skeleton steps into a frame-accurate
- * timing schedule for the Remotion composition.
+ * timing schedule for the composition.
  *
  * Layout:
  *   [lead-in silence] [step 1] [step 2] … [step N] [lead-out silence]
@@ -78,7 +78,7 @@ export interface KineticVideoProps {
  * @param steps       Steps from the DocPage skeleton (preserves order)
  * @param locale      e.g. 'en-US'
  * @param pageId      e.g. 'create_project'
- * @param fps         Must match the Remotion composition's fps constant
+ * @param fps         Must match the composition FPS constant
  * @param leadIn      Lead-in silence in seconds
  * @param leadOut     Lead-out silence in seconds
  */

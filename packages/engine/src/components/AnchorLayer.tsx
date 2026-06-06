@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCurrentFrame } from 'remotion';
+import { useCurrentFrame } from '@kinetic/renderer-compat';
 import { VisualAnchor } from './VisualAnchor';
 import type { StepTiming } from '../lib/timing-schedule';
 

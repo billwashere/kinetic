@@ -2,11 +2,9 @@ import path from 'path';
 import fs from 'fs-extra';
 import { execa } from 'execa';
 
-let ffmpegPath = 'ffmpeg';
-try {
-  const bundled = require('@remotion/bundled-ffmpeg');
-  if (bundled && bundled.getFfmpegPath) ffmpegPath = bundled.getFfmpegPath();
-} catch (e) {}
+// Uses the system `ffmpeg` on PATH.
+// Install via: apt-get install ffmpeg  |  brew install ffmpeg  |  choco install ffmpeg
+const ffmpegPath = 'ffmpeg';
 
 // Smart Stitching Engine: Combines MP4 clips instantly without re-encoding.
 export class VideoStitcher {

@@ -1,5 +1,5 @@
 import React from 'react';
-import { AbsoluteFill, Img } from 'remotion';
+import { AbsoluteFill, Img } from '@kinetic/renderer-compat';
 import type { WatermarkConfig } from '../engine/layer-config';
 
 interface WatermarkLayerProps {
