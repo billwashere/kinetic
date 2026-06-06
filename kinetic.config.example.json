@@ -1,0 +1,43 @@
+{
+  "$schema": "https://your-org.com/kinetic-config-schema.json",
+
+  "site": {
+    "name": "Acme Docs",
+    "description": "Step-by-step guides for Acme products.",
+    "favicon": "/assets/favicon.ico"
+  },
+
+  "theme": {
+    "primary": "#2563eb",
+    "primaryLight": "#eff6ff",
+    "primaryMid": "#bfdbfe",
+    "bg": "#f8fafc",
+    "surface": "#ffffff",
+    "sidebar": "#ffffff"
+  },
+
+  "localeLabels": {
+    "en-US": "EN",
+    "ar-AE": "AR"
+  },
+
+  "localeNames": {
+    "en-US": "English",
+    "ar-AE": "Arabic"
+  },
+
+  "paths": {
+    "locales": "./docs/locales",
+    "tests": "./docs/e2e-tests",
+    "layerConfig": "./docs/layer-config.json",
+    "generated": "./docs/generated",
+    "public": "./docs/public"
+  },
+
+  "plugins": {
+    "head": "./docs/portal-plugins/head.html",
+    "bodyStart": "./docs/portal-plugins/body-start.html",
+    "sidebar": "./docs/portal-plugins/sidebar.html",
+    "page": "./docs/portal-plugins/page.html"
+  }
+}

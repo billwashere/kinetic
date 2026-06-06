@@ -1,0 +1,4 @@
+# Ignore this file if pulling into an existing pnpm monorepo via git subtree.
+packages:
+  - "apps/*"
+  - "packages/*"

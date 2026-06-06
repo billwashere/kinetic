@@ -1,0 +1,40 @@
+{
+  "intro": {
+    "durationSeconds": 4,
+    "backgroundColor": "#0f172a",
+    "accentColor": "#3b82f6",
+    "textColor": "#ffffff",
+    "showBreadcrumbs": true
+  },
+  "outro": {
+    "durationSeconds": 3,
+    "backgroundColor": "#0f172a",
+    "textColor": "#ffffff",
+    "ctaText": "docs.mycompany.com"
+  },
+  "music": {
+    "src": "/assets/background.mp3",
+    "volume": 0.15,
+    "fadeInFrames": 30,
+    "fadeOutFrames": 60,
+    "loop": true
+  },
+  "watermark": {
+    "src": "/assets/logo.png",
+    "position": "bottom-right",
+    "opacity": 0.7,
+    "widthPx": 180,
+    "marginPx": 24
+  },
+  "subtitleStyle": {
+    "fontSize": 32,
+    "backgroundColor": "rgba(0,0,0,0.8)",
+    "textColor": "#ffffff",
+    "position": "bottom",
+    "paddingX": 24,
+    "paddingY": 10,
+    "borderRadius": 8,
+    "maxWidthPct": 80,
+    "fadeFrames": 5
+  }
+}

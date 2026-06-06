@@ -1,0 +1,64 @@
+---
+/**
+ * PageInject — injected after the article content on every page, before the
+ * prev/next navigation.
+ *
+ * Receives page metadata as props so the injected component can be context-aware.
+ */
+
+interface Props {
+  /** The current page ID (e.g. "create_project") */
+  pageId: string;
+  /** The current locale (e.g. "en-US") */
+  locale: string;
+  /** The current version (e.g. "v1.0") */
+  version: string;
+  /** Page title */
+  title: string;
+}
+
+const { pageId, locale, version, title } = Astro.props;
+---
+
+<!--
+  Add page-level injections below this line.
+
+  Use this file for:
+    - Feedback widget ("Was this page helpful?")
+    - Related pages / recommended next reading
+    - "Edit this page on GitHub" link
+    - Page-level comments (Giscus, Utterances)
+    - Social share buttons
+
+  Example — "Was this helpful?" feedback:
+
+    <div class="mt-12 pt-6 border-t border-slate-200">
+      <p class="text-sm font-medium text-slate-600 mb-3">Was this page helpful?</p>
+      <div class="flex gap-2">
+        <button
+          class="px-4 py-1.5 text-sm border border-slate-200 rounded-lg hover:border-slate-400 transition-colors"
+          onclick={`fetch('/api/feedback', {method:'POST',body:JSON.stringify({page:'${pageId}',vote:'yes'})})`}
+        >
+          👍 Yes
+        </button>
+        <button
+          class="px-4 py-1.5 text-sm border border-slate-200 rounded-lg hover:border-slate-400 transition-colors"
+          onclick={`fetch('/api/feedback', {method:'POST',body:JSON.stringify({page:'${pageId}',vote:'no'})})`}
+        >
+          👎 No
+        </button>
+      </div>
+    </div>
+
+  Example — "Edit on GitHub" link:
+
+    <div class="mt-8 text-right">
+      <a
+        href={`https://github.com/your-org/your-repo/edit/main/packages/engine/content/locales/${locale}.json`}
+        class="text-sm text-slate-400 hover:text-slate-600"
+        target="_blank" rel="noopener noreferrer"
+      >
+        Edit this page ↗
+      </a>
+    </div>
+-->

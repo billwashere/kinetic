@@ -1,0 +1,28 @@
+---
+/**
+ * BodyStartInject — injected at the very start of <body> on every page.
+ *
+ * Use this file for:
+ *   - Live chat widgets (Intercom, Zendesk, Crisp)
+ *   - Cookie consent banners (Cookiebot, OneTrust, Osano)
+ *   - A/B testing initialization (Optimizely, LaunchDarkly)
+ *   - Error monitoring (Sentry, LogRocket)
+ *   - Tag managers that must load before other scripts (GTM)
+ *
+ * ─── Examples ────────────────────────────────────────────────────────────────
+ *
+ * Google Tag Manager (body portion — add the <head> portion to HeadInject.astro):
+ *   <noscript>
+ *     <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX"
+ *             height="0" width="0" style="display:none;visibility:hidden"></iframe>
+ *   </noscript>
+ *
+ * Intercom live chat:
+ *   <script>
+ *     window.intercomSettings = { api_base: "https://api-iam.intercom.io", app_id: "YOUR_APP_ID" };
+ *     (function(){var w=window;var ic=w.Intercom;if(typeof ic==="function"){...}})();
+ *   </script>
+ */
+---
+
+<!-- Add body-start injections below this line -->

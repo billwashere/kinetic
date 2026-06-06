@@ -1,0 +1,227 @@
+---
+import fs from 'fs-extra';
+import path from 'path';
+import { marked } from 'marked';
+import DocLayout from '../../../layouts/DocLayout.astro';
+import KineticPlayer from '../../../components/KineticPlayer.tsx';
+import PageInject from '../../../plugins/PageInject.astro';
+
+export async function getStaticPaths() {
+  const generatedDir =
+    process.env.KINETIC_GENERATED_DIR ?? path.resolve('../../packages/engine/generated');
+  if (!fs.existsSync(generatedDir)) return [];
+
+  const versions = await fs.readdir(generatedDir);
+  const localesDir =
+    process.env.KINETIC_LOCALES_DIR ?? path.resolve('../../packages/engine/content/locales');
+  const localeFiles = await fs.readdir(localesDir);
+  const locales = localeFiles
+    .filter((f: string) => f.endsWith('.json'))
+    .map((f: string) => path.basename(f, '.json'));
+
+  // Pre-load all skeletons so we can compute safe version URLs without extra I/O per page
+  const skeletons: Record<string, any[]> = {};
+  for (const version of versions) {
+    try {
+      skeletons[version] = await fs.readJson(
+        path.join(generatedDir, version, 'extracted-skeleton.json'),
+      );
+    } catch {
+      /* skip malformed versions */
+    }
+  }
+
+  const paths = [];
+
+  for (const version of Object.keys(skeletons)) {
+    const skeleton = skeletons[version];
+
+    for (const locale of locales) {
+      const localePath = path.join(
+        process.env.KINETIC_LOCALES_DIR ??
+          process.env.KINETIC_LOCALES_DIR ??
+          path.resolve('../../packages/engine/content/locales'),
+        `${locale}.json`,
+      );
+      if (!fs.existsSync(localePath)) continue;
+
+      const localeData = await fs.readJson(localePath);
+      const textDirection: 'ltr' | 'rtl' = localeData.dir ?? 'ltr';
+      const lang = localeData.locale ?? locale;
+
+      const menuItems = skeleton.map((p: any) => ({
+        id: p.pageId,
+        title: localeData.pages[p.pageId]?.title ?? p.pageId,
+        url: `/${version}/${locale}/${p.pageId}`,
+      }));
+
+      for (let i = 0; i < skeleton.length; i++) {
+        const page = skeleton[i];
+        const pageDict = localeData.pages[page.pageId] ?? {};
+
+        // Safe version URLs: if the current page exists in the target version, link to it.
+        // Otherwise fall back to the first page of that version so no link 404s.
+        const versionUrls: Record<string, string> = {};
+        for (const v of Object.keys(skeletons)) {
+          const targetSkeleton = skeletons[v];
+          const exists = targetSkeleton.some((p: any) => p.pageId === page.pageId);
+          versionUrls[v] = exists
+            ? `/${v}/${locale}/${page.pageId}`
+            : `/${v}/${locale}/${targetSkeleton[0]?.pageId ?? ''}`;
+        }
+
+        const videoUrl = page.videoless
+          ? null
+          : `/video-cache/${version}/${locale}_${page.pageId}.mp4`;
+        const vttUrl = page.videoless
+          ? null
+          : `/video-cache/${version}/${locale}_${page.pageId}.vtt`;
+
+        // Build step list, preserving type for callout vs numbered rendering.
+        // Track step number separately so notes don't increment the count.
+        let actionCount = 0;
+        const steps = page.steps.map((s: any) => {
+          const isAction = s.type === 'action' || s.type === 'assertion';
+          if (isAction) actionCount++;
+          return {
+            type: s.type as 'action' | 'assertion' | 'note',
+            isAssertion: s.type === 'assertion',
+            stepNumber: isAction ? actionCount : null,
+            html: marked.parseInline(localeData.strings[s.textKey] ?? ''),
+          };
+        });
+
+        const prevSkeleton = skeleton[i - 1];
+        const nextSkeleton = skeleton[i + 1];
+
+        paths.push({
+          params: { version, locale, pageId: page.pageId },
+          props: {
+            pageData: {
+              id: page.pageId,
+              title: pageDict.title ?? page.pageId,
+              description: pageDict.description,
+              descriptionHtml: marked.parseInline(pageDict.description ?? ''),
+              breadcrumbs: pageDict.breadcrumbs ?? [],
+              dir: textDirection,
+              lang,
+              videoless: page.videoless ?? false,
+              videoUrl,
+              vttUrl,
+              steps,
+            },
+            allVersions: versions,
+            versionUrls,
+            allLocales: locales,
+            menuItems,
+            prevPage: prevSkeleton
+              ? {
+                  url: `/${version}/${locale}/${prevSkeleton.pageId}`,
+                  title: localeData.pages[prevSkeleton.pageId]?.title ?? prevSkeleton.pageId,
+                }
+              : null,
+            nextPage: nextSkeleton
+              ? {
+                  url: `/${version}/${locale}/${nextSkeleton.pageId}`,
+                  title: localeData.pages[nextSkeleton.pageId]?.title ?? nextSkeleton.pageId,
+                }
+              : null,
+          },
+        });
+      }
+    }
+  }
+
+  return paths;
+}
+
+const { version, locale } = Astro.params;
+const { pageData, allVersions, versionUrls, allLocales, menuItems, prevPage, nextPage } =
+  Astro.props;
+---
+
+<DocLayout
+  title={pageData.title}
+  description={pageData.description}
+  dir={pageData.dir}
+  lang={pageData.lang}
+  allVersions={allVersions}
+  currentVersion={version}
+  versionUrls={versionUrls}
+  allLocales={allLocales}
+  currentLocale={locale}
+  menuItems={menuItems}
+  currentPageId={pageData.id}
+  breadcrumbs={pageData.breadcrumbs}
+  prevPage={prevPage}
+  nextPage={nextPage}
+>
+  <!-- Description -->
+  <p class="text-xl text-slate-500 leading-relaxed mb-8" set:html={pageData.descriptionHtml} />
+
+  <!-- Video player (null for videoless pages — layout flows straight to steps) -->
+  <KineticPlayer
+    videoUrl={pageData.videoUrl}
+    vttUrl={pageData.vttUrl}
+    locale={locale}
+    client:load
+  />
+
+  <!-- Step count indicator -->
+  {
+    pageData.steps.filter((s: any) => s.type !== 'note').length > 0 && (
+      <div class="flex items-center gap-2 mb-4 mt-8">
+        <h2 class="text-lg font-bold text-slate-800">Instructions</h2>
+        <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+          {pageData.steps.filter((s: any) => s.type !== 'note').length} steps
+        </span>
+      </div>
+    )
+  }
+
+  <!-- Step list -->
+  <ol class="space-y-3 list-none p-0">
+    {
+      pageData.steps.map((step: any) => {
+        if (step.type === 'note') {
+          return (
+            <li class="pl-0">
+              <div class="kinetic-callout rounded-lg border px-4 py-3 flex gap-3 items-start">
+                <span
+                  class="kinetic-callout-icon mt-0.5 flex-shrink-0 text-base"
+                  aria-hidden="true"
+                >
+                  ℹ
+                </span>
+                <span class="text-sm leading-relaxed" set:html={step.html} />
+              </div>
+            </li>
+          );
+        }
+
+        const badge = step.isAssertion
+          ? `<span class="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold mt-0.5" aria-label="Verify">✓</span>`
+          : `<span class="kinetic-badge-action flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">${step.stepNumber}</span>`;
+
+        return (
+          <li class="flex gap-3 items-start">
+            <Fragment set:html={badge} />
+            <span
+              class={`text-sm leading-relaxed pt-0.5 ${step.isAssertion ? 'text-slate-500 italic' : 'text-slate-700'}`}
+              set:html={step.html}
+            />
+          </li>
+        );
+      })
+    }
+  </ol>
+
+  <!-- Plugin injection point: feedback widget, related pages, comments, edit link -->
+  <PageInject
+    slot="page-inject"
+    pageId={pageData.id}
+    locale={locale}
+    version={version}
+    title={pageData.title}
+  />
+</DocLayout>

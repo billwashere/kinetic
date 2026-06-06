@@ -1,0 +1,61 @@
+---
+/**
+ * Root redirect — discovers the latest version and default locale then
+ * redirects to the first documentation page.
+ *
+ * Users reaching / (e.g. from a bookmark or the 404 back-link) land somewhere
+ * useful instead of a blank page or error.
+ */
+import fs from 'fs-extra';
+import path from 'path';
+
+const generatedDir =
+  process.env.KINETIC_GENERATED_DIR ?? path.resolve('../../packages/engine/generated');
+const localesDir =
+  process.env.KINETIC_LOCALES_DIR ?? path.resolve('../../packages/engine/content/locales');
+
+let redirectTo: string | null = null;
+
+try {
+  const versions = (await fs.readdir(generatedDir)).sort();
+  const latestVersion = versions[versions.length - 1];
+
+  const localeFiles = await fs.readdir(localesDir);
+  const firstLocale = localeFiles
+    .filter((f: string) => f.endsWith('.json'))
+    .sort()[0]
+    ?.replace('.json', '');
+
+  const skeleton = await fs.readJson(
+    path.join(generatedDir, latestVersion, 'extracted-skeleton.json'),
+  );
+  const firstPage = skeleton[0]?.pageId;
+
+  if (latestVersion && firstLocale && firstPage) {
+    redirectTo = `/${latestVersion}/${firstLocale}/${firstPage}`;
+  }
+} catch {
+  // No content yet — fall through to the "not built" message
+}
+
+if (redirectTo) {
+  return Astro.redirect(redirectTo, 301);
+}
+---
+
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kinetic Docs</title>
+  </head>
+  <body class="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+    <div class="text-center px-6">
+      <h1 class="text-2xl font-bold text-slate-800 mb-3">No documentation found</h1>
+      <p class="text-slate-500">
+        Run <code class="bg-slate-100 px-1.5 py-0.5 rounded">pnpm build:pipeline</code> to generate the
+        documentation first.
+      </p>
+    </div>
+  </body>
+</html>

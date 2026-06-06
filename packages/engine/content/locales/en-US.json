@@ -1,0 +1,17 @@
+{
+  "locale": "en-US", "dir": "ltr",
+  "pages": {
+    "create_project": {
+      "title": "Creating a New Project", 
+      "description": "Learn how to scaffold a new project. **Markdown supported.**", 
+      "breadcrumbs": ["Workspace", "Projects"]
+    }
+  },
+  "strings": {
+    "login_email": "First, enter your registered email address.",
+    "nav_to_project": "Navigate to the **projects dashboard**.",
+    "enter_name": "Enter a name for your new project.",
+    "click_submit": "Click submit to finish.",
+    "verify_success": "Notice the success message indicating the project is ready."
+  }
+}

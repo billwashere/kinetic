@@ -1,0 +1,13 @@
+[
+  {
+    "pageId": "create_project",
+    "steps": [
+      { "type": "action",    "stepId": "login_email", "textKey": "login_email",    "anchor": { "x": 100, "y": 200, "width": 300, "height": 40 } },
+      { "type": "action",    "stepId": "nav",         "textKey": "nav_to_project", "anchor": { "x": 200, "y": 350, "width": 120, "height": 36 } },
+      { "type": "action",    "stepId": "submit",      "textKey": "click_submit",   "anchor": { "x": 150, "y": 520, "width": 100, "height": 44 } },
+      { "type": "assertion", "stepId": "verify",      "textKey": "verify_success", "anchor": null },
+      { "type": "action",    "stepId": "new_step",    "textKey": "new_key",        "anchor": null }
+    ]
+  },
+  { "pageId": "new_page", "steps": [] }
+]

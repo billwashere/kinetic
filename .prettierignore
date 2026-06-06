@@ -1,0 +1,9 @@
+node_modules
+dist
+.turbo
+pnpm-lock.yaml
+generated
+public/audio-objects
+public/video-cache
+public/visual-cache
+.remotion-bundle-cache

@@ -1,0 +1,374 @@
+---
+import { SITE, LOCALE_LABELS, LOCALE_NAMES, themeStyleTag } from '../config';
+import fs from 'fs-extra';
+import path from 'path';
+
+// Plugin HTML files live OUTSIDE the subtree — read from paths specified via
+// env vars, or fall back to the bundled stub files inside the subtree.
+async function readPlugin(envVar: string, internalFallback: string): Promise<string> {
+  const external = process.env[envVar];
+  if (external) {
+    return fs.readFile(path.resolve(external), 'utf8').catch(() => '');
+  }
+  // Fall back to the stub file bundled inside the subtree (safe empty stubs)
+  return fs.readFile(path.resolve(import.meta.dirname, internalFallback), 'utf8').catch(() => '');
+}
+
+const [headHtml, bodyStartHtml, sidebarHtml] = await Promise.all([
+  readPlugin('KINETIC_PLUGIN_HEAD', '../plugins/HeadInject.astro'),
+  readPlugin('KINETIC_PLUGIN_BODY_START', '../plugins/BodyStartInject.astro'),
+  readPlugin('KINETIC_PLUGIN_SIDEBAR', '../plugins/SidebarInject.astro'),
+]);
+
+interface MenuItem {
+  id: string;
+  title: string;
+  url: string;
+}
+
+interface AdjacentPage {
+  url: string;
+  title: string;
+}
+
+interface Props {
+  title: string;
+  description?: string;
+  dir: string;
+  lang: string;
+  allVersions: string[];
+  currentVersion: string;
+  versionUrls: Record<string, string>;
+  allLocales: string[];
+  currentLocale: string;
+  menuItems: MenuItem[];
+  currentPageId: string;
+  breadcrumbs: string[];
+  prevPage: AdjacentPage | null;
+  nextPage: AdjacentPage | null;
+}
+
+const {
+  title,
+  description,
+  dir,
+  lang,
+  allVersions,
+  currentVersion,
+  versionUrls,
+  allLocales,
+  currentLocale,
+  menuItems,
+  currentPageId,
+  breadcrumbs,
+  prevPage,
+  nextPage,
+} = Astro.props;
+
+const metaDescription = description ?? SITE.description;
+---
+
+<!doctype html>
+<html lang={lang} dir={dir}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={metaDescription} />
+    <meta property="og:title" content={`${title} | ${SITE.name}`} />
+    <meta property="og:description" content={metaDescription} />
+    <meta property="og:type" content="article" />
+    <link rel="icon" href={SITE.favicon} sizes="any" />
+    <title>{title} | {SITE.name}</title>
+
+    <!-- Theme: CSS custom properties derived from THEME in config.ts.
+         Change THEME.primary (and its tints) to rebrand the portal. -->
+    <Fragment set:html={themeStyleTag()} />
+
+    <!-- Global semantic classes that reference the theme variables.
+         These replace hardcoded colour utilities so theming cascades correctly. -->
+    <style is:global>
+      .kinetic-active {
+        background-color: var(--kinetic-primary);
+        color: #ffffff;
+      }
+      .kinetic-active-pill {
+        background-color: var(--kinetic-primary);
+        color: #ffffff;
+      }
+      .kinetic-hover-text:hover {
+        color: var(--kinetic-primary);
+      }
+      .kinetic-hover-border:hover {
+        border-color: var(--kinetic-primary-mid);
+      }
+      .kinetic-focus:focus {
+        outline: 2px solid var(--kinetic-primary);
+        outline-offset: 2px;
+        box-shadow: none;
+      }
+      /* Step number badge */
+      .kinetic-badge-action {
+        background-color: var(--kinetic-primary-light);
+        color: var(--kinetic-primary);
+      }
+      /* Note callout */
+      .kinetic-callout {
+        background-color: var(--kinetic-primary-light);
+        border-color: var(--kinetic-primary-mid);
+        color: #1e3a8a; /* slate-900 equivalent for legibility on light tint */
+      }
+      .kinetic-callout-icon {
+        color: var(--kinetic-primary);
+      }
+    </style>
+
+    <!-- Plugin injection point: analytics, fonts, custom meta tags -->
+    <Fragment set:html={headHtml} />
+  </head>
+
+  <body class="bg-slate-50 text-slate-900 font-sans min-h-screen">
+    <!-- Plugin injection point: chat widgets, cookie consent, GTM body tag -->
+    <Fragment set:html={bodyStartHtml} />
+
+    <!-- ── Mobile top bar ──────────────────────────────────────────── -->
+    <header
+      class="md:hidden sticky top-0 z-30 bg-white border-b border-slate-200 flex items-center gap-3 px-4 h-14"
+    >
+      <button
+        id="nav-toggle"
+        aria-label="Open navigation"
+        aria-expanded="false"
+        aria-controls="sidebar"
+        class="flex-shrink-0 p-1.5 rounded-md text-slate-500 hover:bg-slate-100 transition-colors"
+      >
+        <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M4 6h16M4 12h16M4 18h16"></path>
+        </svg>
+      </button>
+      <span class="font-bold text-slate-800 truncate">{SITE.name}</span>
+    </header>
+
+    <!-- ── Backdrop (mobile only) ──────────────────────────────────── -->
+    <div id="backdrop" class="fixed inset-0 z-20 bg-black/40 hidden md:hidden" aria-hidden="true">
+    </div>
+
+    <div class="flex min-h-screen">
+      <!-- ── Sidebar ───────────────────────────────────────────────── -->
+      <aside
+        id="sidebar"
+        class="fixed inset-y-0 left-0 z-30 w-72 bg-white border-r border-slate-200 flex flex-col
+               -translate-x-full transition-transform duration-200 ease-in-out
+               md:relative md:translate-x-0 md:flex md:min-h-screen"
+      >
+        <!-- Logo -->
+        <div class="flex items-center px-6 h-14 border-b border-slate-200 flex-shrink-0">
+          <span class="font-black text-xl text-slate-800">{SITE.name}</span>
+        </div>
+
+        <!-- Nav items -->
+        <nav class="flex-1 overflow-y-auto p-4" aria-label="Documentation pages">
+          <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-3">
+            Contents
+          </p>
+          <ul class="space-y-0.5">
+            {
+              menuItems.map((item) => (
+                <li>
+                  <a
+                    href={item.url}
+                    aria-current={item.id === currentPageId ? 'page' : undefined}
+                    class={
+                      `block px-3 py-2 rounded-lg text-sm font-medium transition-colors ` +
+                      (item.id === currentPageId
+                        ? 'kinetic-active'
+                        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900')
+                    }
+                  >
+                    {item.title}
+                  </a>
+                </li>
+              ))
+            }
+          </ul>
+
+          <!-- Plugin injection point: external links, search widget, notices -->
+          <Fragment set:html={sidebarHtml} />
+        </nav>
+
+        <!-- Sidebar footer: locale + version switchers -->
+        <div class="flex-shrink-0 border-t border-slate-200 p-4 space-y-3">
+          {
+            allLocales.length > 1 && (
+              <div>
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  Language
+                </p>
+                <div class="flex flex-wrap gap-1.5" role="group" aria-label="Switch language">
+                  {allLocales.map((loc) => {
+                    const label = LOCALE_LABELS[loc] ?? loc;
+                    const name = LOCALE_NAMES[loc] ?? loc;
+                    const localeUrl = Astro.url.pathname.replace(`/${currentLocale}/`, `/${loc}/`);
+                    return (
+                      <a
+                        href={localeUrl}
+                        aria-label={`Switch to ${name}`}
+                        aria-current={loc === currentLocale ? 'true' : undefined}
+                        class={
+                          `px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ` +
+                          (loc === currentLocale
+                            ? 'kinetic-active-pill'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200')
+                        }
+                      >
+                        {label}
+                      </a>
+                    );
+                  })}
+                </div>
+              </div>
+            )
+          }
+
+          {
+            allVersions.length > 1 && (
+              <div>
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                  Version
+                </p>
+                <select
+                  id="version-select"
+                  aria-label="Switch version"
+                  data-version-urls={JSON.stringify(versionUrls)}
+                  class="w-full border border-slate-200 bg-slate-50 px-2.5 py-1.5 rounded-lg text-sm font-semibold cursor-pointer kinetic-focus"
+                >
+                  {allVersions.map((v) => (
+                    <option value={v} selected={v === currentVersion}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )
+          }
+        </div>
+      </aside>
+
+      <!-- ── Main content ──────────────────────────────────────────── -->
+      <main class="flex-1 min-w-0 p-6 md:p-10">
+        <div class="max-w-4xl mx-auto">
+          {
+            breadcrumbs.length > 0 && (
+              <nav aria-label="Breadcrumb" class="mb-4">
+                <ol class="flex flex-wrap items-center gap-1.5 text-sm text-slate-400">
+                  {breadcrumbs.map((crumb, i) => (
+                    <>
+                      {i > 0 && (
+                        <li aria-hidden="true" class="select-none">
+                          {dir === 'rtl' ? '‹' : '›'}
+                        </li>
+                      )}
+                      <li class={i === breadcrumbs.length - 1 ? 'text-slate-600 font-medium' : ''}>
+                        {crumb}
+                      </li>
+                    </>
+                  ))}
+                </ol>
+              </nav>
+            )
+          }
+
+          <h1 class="text-3xl font-extrabold tracking-tight text-slate-900 mb-8">{title}</h1>
+
+          <!-- Page content -->
+          <article>
+            <slot />
+          </article>
+
+          <!-- Plugin injection point: feedback, related pages, comments -->
+          <slot name="page-inject" />
+
+          {
+            (prevPage || nextPage) && (
+              <nav
+                aria-label="Page navigation"
+                class="mt-16 pt-6 border-t border-slate-200 grid grid-cols-2 gap-4"
+              >
+                <div>
+                  {prevPage && (
+                    <a
+                      href={prevPage.url}
+                      class="group flex flex-col gap-1 p-4 rounded-xl border border-slate-200 bg-white kinetic-hover-border hover:shadow-sm transition-all"
+                    >
+                      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        {dir === 'rtl' ? 'التالي ›' : '‹ Previous'}
+                      </span>
+                      <span class="text-sm font-semibold text-slate-700 kinetic-hover-text transition-colors line-clamp-2">
+                        {prevPage.title}
+                      </span>
+                    </a>
+                  )}
+                </div>
+                <div class="flex justify-end">
+                  {nextPage && (
+                    <a
+                      href={nextPage.url}
+                      class="group flex flex-col gap-1 p-4 rounded-xl border border-slate-200 bg-white kinetic-hover-border hover:shadow-sm transition-all text-right w-full"
+                      style={dir === 'rtl' ? 'text-align:left' : ''}
+                    >
+                      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+                        {dir === 'rtl' ? '‹ السابق' : 'Next ›'}
+                      </span>
+                      <span class="text-sm font-semibold text-slate-700 kinetic-hover-text transition-colors line-clamp-2">
+                        {nextPage.title}
+                      </span>
+                    </a>
+                  )}
+                </div>
+              </nav>
+            )
+          }
+        </div>
+      </main>
+    </div>
+
+    <script>
+      const toggle = document.getElementById('nav-toggle');
+      const sidebar = document.getElementById('sidebar');
+      const backdrop = document.getElementById('backdrop');
+
+      function openNav() {
+        sidebar?.classList.remove('-translate-x-full');
+        backdrop?.classList.remove('hidden');
+        toggle?.setAttribute('aria-expanded', 'true');
+        toggle?.setAttribute('aria-label', 'Close navigation');
+      }
+      function closeNav() {
+        sidebar?.classList.add('-translate-x-full');
+        backdrop?.classList.add('hidden');
+        toggle?.setAttribute('aria-expanded', 'false');
+        toggle?.setAttribute('aria-label', 'Open navigation');
+      }
+
+      toggle?.addEventListener('click', () => {
+        toggle.getAttribute('aria-expanded') === 'true' ? closeNav() : openNav();
+      });
+      backdrop?.addEventListener('click', closeNav);
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') closeNav();
+      });
+
+      const versionSelect = document.getElementById('version-select') as HTMLSelectElement | null;
+      if (versionSelect) {
+        const urls: Record<string, string> = JSON.parse(versionSelect.dataset.versionUrls ?? '{}');
+        versionSelect.addEventListener('change', () => {
+          const url = urls[versionSelect.value];
+          if (url) window.location.href = url;
+        });
+      }
+    </script>
+  </body>
+</html>

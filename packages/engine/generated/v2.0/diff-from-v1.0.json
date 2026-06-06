@@ -1,0 +1,78 @@
+{
+  "from": "v1.0",
+  "to": "v2.0",
+  "generatedAt": "2026-05-05T22:45:21.721Z",
+  "summary": {
+    "breaking": 2,
+    "warnings": 1,
+    "info": 2
+  },
+  "findings": [
+    {
+      "severity": "breaking",
+      "category": "structural",
+      "pageId": "old_page",
+      "message": "Page removed: \"old_page\" — all audio manifest entries for this page will 404"
+    },
+    {
+      "severity": "info",
+      "category": "structural",
+      "pageId": "new_page",
+      "message": "Page added: \"new_page\""
+    },
+    {
+      "severity": "info",
+      "category": "structural",
+      "pageId": "create_project",
+      "stepId": "new_step",
+      "message": "Step added: \"new_step\" to page \"create_project\""
+    },
+    {
+      "severity": "warning",
+      "category": "anchor",
+      "pageId": "create_project",
+      "stepId": "nav",
+      "message": "Anchor drifted 50px for \"nav\" (warn threshold: 20px)",
+      "detail": {
+        "from": {
+          "x": 200,
+          "y": 300,
+          "width": 120,
+          "height": 36
+        },
+        "to": {
+          "x": 200,
+          "y": 350,
+          "width": 120,
+          "height": 36
+        },
+        "delta": 50,
+        "threshold": 20
+      }
+    },
+    {
+      "severity": "breaking",
+      "category": "anchor",
+      "pageId": "create_project",
+      "stepId": "submit",
+      "message": "Anchor drifted 120px for \"submit\" (break threshold: 100px) — visual highlight will point at the wrong element",
+      "detail": {
+        "from": {
+          "x": 150,
+          "y": 400,
+          "width": 100,
+          "height": 44
+        },
+        "to": {
+          "x": 150,
+          "y": 520,
+          "width": 100,
+          "height": 44
+        },
+        "delta": 120,
+        "threshold": 100
+      }
+    }
+  ],
+  "visualArtifacts": {}
+}

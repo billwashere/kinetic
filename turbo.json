@@ -1,0 +1,50 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "tasks": {
+    "test:docs": {
+      "inputs": ["e2e-tests/**/*.ts", "src/lib/doc-extractor.ts"],
+      "outputs": ["generated/**", "public/visual-cache/**"],
+      "dependsOn": ["^build"]
+    },
+    "generate:audio": {
+      "inputs": ["generated/**", "content/locales/**", "src/engine/**"],
+      "outputs": ["public/audio-objects/**", "public/audio-manifest*.json"],
+      "dependsOn": ["test:docs"]
+    },
+    "assemble": {
+      "inputs": [
+        "public/audio-manifest*.json",
+        "public/visual-cache/**",
+        "src/components/**",
+        "src/index.tsx"
+      ],
+      "outputs": ["public/video-cache/**"],
+      "dependsOn": ["generate:audio"]
+    },
+    "diff:check": {
+      "inputs": ["generated/**/*.json"],
+      "outputs": ["generated/**/diff-from-*.json", "generated/**/visual-diff/**"],
+      "dependsOn": ["test:docs"],
+      "cache": false
+    },
+    "build:pipeline": {
+      "dependsOn": ["test:docs", "generate:audio", "assemble"]
+    },
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"]
+    },
+    "@kinetic/docs-portal#build": {
+      "inputs": ["src/**", "../../packages/engine/public/**", "../../packages/engine/generated/**"],
+      "outputs": ["dist/**"],
+      "dependsOn": ["@kinetic/engine#assemble"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "test:unit": {
+      "inputs": ["src/**/*.test.ts", "src/**/*.ts"]
+    }
+  }
+}
