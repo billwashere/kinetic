@@ -6,7 +6,8 @@
     "test:docs": "playwright test",
     "generate:audio": "ts-node src/scripts/pre-render-audio.ts",
     "diff:check": "ts-node src/scripts/diff-check.ts",
-    "assemble": "ts-node src/scripts/assemble.ts"
+    "assemble": "ts-node src/scripts/assemble.ts",
+    "generate:corpus": "ts-node src/scripts/generate-corpus.ts"
   },
   "dependencies": {
     "@kinetic/renderer-compat": "workspace:*",

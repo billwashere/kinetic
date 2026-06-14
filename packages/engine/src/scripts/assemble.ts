@@ -10,6 +10,8 @@ import { type AudioManifest } from '../lib/manifest-reader';
 import { buildPageTimingSchedule, type KineticVideoProps } from '../lib/timing-schedule';
 import { secondsToFrames } from '../lib/manifest-reader';
 import { generateWebVTT } from '../lib/vtt';
+import { generateMarkdownPage } from '../lib/text-exporter';
+import { validateLocale } from '../engine/locale-schema';
 import {
   stitchAndMix,
   computeIntroHash,
@@ -210,6 +212,9 @@ async function main(): Promise<void> {
   const locales = await getAvailableLocales();
   console.log(`\n🌍 Rendering locales: ${locales.join(', ')}`);
 
+  const textDir = path.join(GENERATED_DIR, VERSION, 'text');
+  await fs.ensureDir(textDir);
+
   for (const locale of locales) {
     const localePath = path.join(LOCALES_DIR, `${locale}.json`);
     if (!(await fs.pathExists(localePath))) {
@@ -217,8 +222,8 @@ async function main(): Promise<void> {
       continue;
     }
 
-    const localeData = await fs.readJson(localePath);
-    const textDirection = localeData.dir as 'ltr' | 'rtl';
+    const localeData = validateLocale(await fs.readJson(localePath), localePath);
+    const textDirection = localeData.dir;
     const manifest = await loadManifest(locale);
 
     // Render the outro once per locale (shared across all pages)
@@ -239,6 +244,11 @@ async function main(): Promise<void> {
       // The Astro portal will show their written steps without a video player.
       if (page.videoless) {
         console.log(`\n📄 [${locale}] ${page.pageId} — videoless, skipping render`);
+        await fs.writeFile(
+          path.join(textDir, `${locale}_${page.pageId}.md`),
+          generateMarkdownPage(page, localeData, manifest, locale),
+          'utf8',
+        );
         continue;
       }
 
@@ -349,6 +359,12 @@ async function main(): Promise<void> {
           'utf8',
         );
       }
+
+      await fs.writeFile(
+        path.join(textDir, `${locale}_${page.pageId}.md`),
+        generateMarkdownPage(page, localeData, manifest, locale),
+        'utf8',
+      );
 
       console.log(`   ✅ ${path.relative(process.cwd(), finalOutputFile)}`);
     }
