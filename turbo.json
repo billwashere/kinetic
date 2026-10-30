@@ -36,9 +36,14 @@
       "outputs": ["dist/**"]
     },
     "@kinetic/docs-portal#build": {
-      "inputs": ["src/**", "../../packages/engine/public/**", "../../packages/engine/generated/**"],
+      "inputs": [
+        "src/**",
+        "../../packages/engine/public/**",
+        "../../packages/engine/generated/**",
+        "../../packages/engine/dist/knowledge/**"
+      ],
       "outputs": ["dist/**"],
-      "dependsOn": ["@kinetic/engine#assemble"]
+      "dependsOn": ["@kinetic/engine#assemble", "@kinetic/engine#knowledge:compile"]
     },
     "dev": {
       "cache": false,
@@ -60,6 +65,11 @@
         "src/scripts/release-*.ts"
       ],
       "outputs": ["dist/release/**"],
+      "dependsOn": ["knowledge:validate"]
+    },
+    "knowledge:compile": {
+      "inputs": ["content/knowledge/**", "content/locales/**", "generated/**", "src/knowledge/**"],
+      "outputs": ["dist/knowledge/**"],
       "dependsOn": ["knowledge:validate"]
     }
   }

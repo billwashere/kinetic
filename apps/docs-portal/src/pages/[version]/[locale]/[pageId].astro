@@ -5,6 +5,8 @@ import { marked } from 'marked';
 import DocLayout from '../../../layouts/DocLayout.astro';
 import KineticPlayer from '../../../components/KineticPlayer.tsx';
 import PageInject from '../../../plugins/PageInject.astro';
+import RelatedKnowledge from '../../../components/RelatedKnowledge.astro';
+import { loadKnowledge, relatedFor } from '../../../lib/knowledge';
 
 // Pages are emitted as <version>/<locale>/<pageId>/index.html, so the site root is always three
 // levels up. Relative URLs (instead of '/…') keep the build relocatable: CDN path, intranet, or ZIP.
@@ -35,6 +37,7 @@ export async function getStaticPaths() {
     }
   }
 
+  const knowledge = loadKnowledge();
   const paths = [];
 
   for (const version of Object.keys(skeletons)) {
@@ -114,6 +117,7 @@ export async function getStaticPaths() {
               vttUrl,
               steps,
             },
+            related: knowledge ? relatedFor(knowledge, version, locale, page.pageId) : [],
             allVersions: versions,
             versionUrls,
             allLocales: locales,
@@ -140,8 +144,13 @@ export async function getStaticPaths() {
 }
 
 const ROOT = '../../../';
+// The release layout puts the explorer next to site/ (…/site/<v>/<l>/<p>/ -> …/explorer/).
+// Set KINETIC_EXPLORER_PATH to '' for a portal deployed without it.
+const explorerPath = process.env.KINETIC_EXPLORER_PATH ?? '../explorer/';
+const explorerHref = (id: string) =>
+  explorerPath ? `${ROOT}${explorerPath}#${encodeURIComponent(id)}` : null;
 const { version, locale } = Astro.params;
-const { pageData, allVersions, versionUrls, allLocales, menuItems, prevPage, nextPage } =
+const { related, pageData, allVersions, versionUrls, allLocales, menuItems, prevPage, nextPage } =
   Astro.props;
 ---
 
@@ -221,6 +230,9 @@ const { pageData, allVersions, versionUrls, allLocales, menuItems, prevPage, nex
       })
     }
   </ol>
+
+  <!-- Knowledge graph context for this procedure (from the compiled knowledge files) -->
+  <RelatedKnowledge items={related} explorerHref={explorerHref} />
 
   <!-- Plugin injection point: feedback widget, related pages, comments, edit link -->
   <PageInject

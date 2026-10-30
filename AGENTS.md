@@ -447,6 +447,7 @@ pnpm knowledge:validate                       # errors fail; --strict also fails
 pnpm release:build [--no-media] [--site DIR]  # CDN tree + offline ZIP, both verified
 pnpm release:verify <dir|file.zip> [--offline]
 pnpm release:promote <cdn-root> [<release-id>]  # promote or roll back; no id lists releases
+pnpm knowledge:compile                        # dist/knowledge/ — the portal reads these files (run before the Astro build)
 pnpm release:smoke                            # extracted ZIP + launcher + Chromium, non-root base
 pnpm knowledge:query <release-dir> node <id> --depth 2
 ```
@@ -457,6 +458,7 @@ pnpm knowledge:query <release-dir> node <id> --depth 2
 - Output must stay deterministic: no timestamps, no absolute paths, sorted keys/arrays. `release.test.ts` asserts identical ZIP bytes.
 - URLs in the portal and release content must be document-relative (portal pages use `ROOT = '../../../'`). `verify.ts` rejects root-absolute URLs; Astro's `/_astro/` URLs are rewritten once in `relativizeAstroAssets`. Never add a `/…` link to the portal.
 - `release:build --site ../../apps/docs-portal/dist [--declare-missing-media]` includes the built Astro portal; undeclared missing media fails the build.
+- The portal's "Related knowledge" section (`RelatedKnowledge.astro`, `src/lib/knowledge.ts`) reads only the compiled files, never engine code. It is shown only for `compiled.json`'s `docsVersion`. Set `KINETIC_EXPLORER_PATH=` (empty) for a portal deployed without the explorer.
 - `file://` is unsupported for releases; use the bundled `serve.mjs`.
 
 ---

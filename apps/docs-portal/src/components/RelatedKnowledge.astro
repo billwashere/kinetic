@@ -1,0 +1,61 @@
+---
+import type { RelatedItem } from '../lib/knowledge';
+
+interface Props {
+  items: RelatedItem[];
+  /** Link to the graph explorer for one node, or null when the explorer is not deployed alongside. */
+  explorerHref: (id: string) => string | null;
+}
+const { items, explorerHref } = Astro.props;
+const badge: Record<string, string> = {
+  verified: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  asserted: 'bg-amber-50 text-amber-700 border-amber-200',
+  unevidenced: 'bg-slate-50 text-slate-500 border-slate-200 border-dashed',
+};
+---
+
+{
+  items.length > 0 && (
+    <section class="mt-12 pt-6 border-t border-slate-200" aria-labelledby="related-knowledge">
+      <h2 id="related-knowledge" class="text-lg font-bold text-slate-800 mb-1">
+        Related knowledge
+      </h2>
+      <p class="text-xs text-slate-500 mb-4">
+        "Verified" means the build checked the supporting evidence against the test steps or source
+        files it cites.
+      </p>
+      <ul class="space-y-3 list-none p-0" data-testid="related-knowledge">
+        {items.map((it) => (
+          <li class="rounded-lg border border-slate-200 px-4 py-3">
+            <p class="text-sm text-slate-700">
+              <strong>{it.title}</strong>
+              <span class="text-xs text-slate-500"> ({it.kind})</span>
+              {' ' + it.relation}
+              <span
+                class={`ml-1 text-xs border rounded-full px-2 py-0.5 ${badge[it.verification] ?? ''}`}
+              >
+                {it.verification}
+              </span>
+            </p>
+            {it.summary && <p class="text-sm text-slate-500 mt-1">{it.summary}</p>}
+            {it.evidence.length > 0 && (
+              <details class="mt-1 text-xs text-slate-500">
+                <summary class="cursor-pointer">Evidence ({it.evidence.length})</summary>
+                <ul class="mt-1 list-disc ps-5">
+                  {it.evidence.map((e) => (
+                    <li>{e}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            {explorerHref(it.id) && (
+              <a class="text-xs text-blue-600 hover:underline" href={explorerHref(it.id)}>
+                Explore in graph
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}

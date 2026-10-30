@@ -28,6 +28,9 @@ jobs:
 
       # Astro only: the full media pipeline (Playwright/TTS/ffmpeg) is not re-run for ordinary doc edits.
       # Media that was not rendered is declared in the manifest rather than silently dangling.
+      - name: Compile knowledge for the portal
+        run: pnpm --filter @kinetic/engine knowledge:compile
+
       - name: Build portal
         run: pnpm --filter @kinetic/docs-portal exec astro build
 

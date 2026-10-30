@@ -148,6 +148,29 @@ async function main(): Promise<void> {
           await page.waitForURL(/\/create_project\/$/); // meta-refresh redirect from the site root
           await page.goto(`${siteUrl}v1.0/en-US/create_project/`);
           await page.getByRole('heading', { level: 1 }).first().waitFor();
+          // Phase 4: knowledge context on the procedure page, with evidence and a working explorer link.
+          const related = page.getByTestId('related-knowledge');
+          assert(
+            (await related.textContent())?.includes('is documented by this procedure'),
+            `related knowledge shown at ${siteUrl}`,
+          );
+          assert(
+            (await related.textContent())?.includes('verified'),
+            'verification status shown on the page',
+          );
+          await related.locator('details summary').first().click();
+          assert(
+            (await related.textContent())?.includes('create_project / submit'),
+            'evidence step shown',
+          );
+          const href = await related
+            .getByRole('link', { name: 'Explore in graph' })
+            .first()
+            .getAttribute('href');
+          const explorerResp = await page.request.get(
+            new URL(href!, page.url()).href.split('#')[0],
+          );
+          assert(explorerResp.ok(), `explorer link resolves (${href})`);
           const sheetApplied = await page.evaluate(() => document.styleSheets.length > 0);
           assert(sheetApplied, `stylesheet loaded at ${siteUrl}`);
           // Follow in-page navigation: version/locale/prev/next links must stay inside the base.

@@ -13,7 +13,8 @@
     "release:verify": "ts-node src/scripts/release-verify.ts",
     "release:promote": "ts-node src/scripts/release-promote.ts",
     "release:smoke": "ts-node src/scripts/release-smoke.ts",
-    "knowledge:query": "ts-node src/scripts/knowledge-query.ts"
+    "knowledge:query": "ts-node src/scripts/knowledge-query.ts",
+    "knowledge:compile": "ts-node src/scripts/knowledge-compile.ts"
   },
   "dependencies": {
     "@kinetic/renderer-compat": "workspace:*",
