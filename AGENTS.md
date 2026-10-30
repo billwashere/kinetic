@@ -465,6 +465,19 @@ pnpm knowledge:query <release-dir> node <id> --depth 2
 
 ---
 
+## User Guides (Diátaxis `guide` nodes)
+
+Hand-written Markdown guides in a host repo can be imported into the knowledge graph, so they get the same graph, search index, release, CDN and offline ZIP as everything else. Set `paths.guides` in `kinetic.config.json` (or `KINETIC_GUIDES_DIR`); unset means no guides. Code: `packages/engine/src/knowledge/guides.ts` (pure, tests in `guides.test.ts`).
+
+- **Id.** `guide:<file name>` unless frontmatter sets `id`. Title defaults to the first `#` heading, summary to the first paragraph.
+- **Frontmatter** (strict; unknown keys fail): `type` (required: `tutorial | how-to | explanation | reference`), `categories` (`business-process | configuration | troubleshooting | role-tasks | release`, navigation only), `audience`, `prerequisites`, `startingPoint`, `outcome`, `result`, `appliesTo` (product version), `follows` / `related` (guide ids → `follows` / `related_to` edges), `verification` (`status: verified | partial | unverified`, `reviewedAt`, `reviewedBy`), `evidence` (same types as nodes), `provenance` (internal; never emitted).
+- **Evidence rules.** `verified` without a machine-checkable `evidence` entry is an error. `partial` means evidence covers only part of the guide. Evidence `file` paths resolve against the Kinetic repo root and the directory holding `kinetic.config.json`.
+- **Quality gates** run inside `pnpm knowledge:validate`. Errors: bad frontmatter, broken relative link or anchor, empty mermaid block, verified claim with no evidence. Warnings (heuristics that find suspicious gaps, not proof a procedure works; `--strict` fails on them): no numbered steps, starting point, outcome, verification or recovery in a how-to/tutorial; draft with no activate/approve/submit/post action; UI labels with no verification evidence; vague link text; diagram with no text explanation; stale review; missing `appliesTo`.
+- **Relationships.** `follows` (guide → guide, acyclic) orders guides in a process. `related_to` and `supersedes` accept guides. `related_to` is symmetric, so declare each pair once.
+- **Not done yet:** guides are not rendered as portal pages (they appear in the explorer, graph and search), and bodies are default-locale only.
+
+---
+
 ## Portal Layout, Diátaxis and Procedure Style
 
 - **Diátaxis.** Pages extracted from Playwright tests are procedures, so they are *How-to guides* by default; `store.page(id, { diataxis: 'tutorial' })` marks a learning walkthrough. Knowledge concepts/features are *Explanation* (the explorer). Header tabs are those quadrants; the sidebar only lists the current quadrant, grouped by `breadcrumbs[0]` › `breadcrumbs[1]`.

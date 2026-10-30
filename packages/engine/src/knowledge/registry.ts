@@ -9,7 +9,7 @@ export const DEFAULT_LOCALE = 'en-US';
 /** `<kind>:<slug>`. Slugs allow `_` because derived procedure ids reuse skeleton pageIds. */
 export const SLUG_RE = /^[a-z0-9]+(?:[-_][a-z0-9]+)*$/;
 
-export const NODE_KINDS = ['concept', 'feature', 'procedure', 'configuration'] as const;
+export const NODE_KINDS = ['concept', 'feature', 'procedure', 'configuration', 'guide'] as const;
 export type NodeKind = (typeof NODE_KINDS)[number];
 
 export function isNodeKind(v: string): v is NodeKind {
@@ -35,6 +35,8 @@ export interface RelationshipDef {
 }
 
 const SUBJECTS = ['concept', 'feature', 'configuration'] as const;
+/** Authored user guides may relate to anything a subject or procedure may. */
+const LINKABLE = [...SUBJECTS, 'procedure', 'guide'] as const;
 
 export const RELATIONSHIPS = {
   depends_on: {
@@ -95,8 +97,8 @@ export const RELATIONSHIPS = {
   related_to: {
     label: 'is related to',
     inverseLabel: 'is related to',
-    from: [...SUBJECTS, 'procedure'],
-    to: [...SUBJECTS, 'procedure'],
+    from: LINKABLE,
+    to: LINKABLE,
     acyclic: false,
     symmetric: true,
     evidence: 'none',
@@ -104,8 +106,18 @@ export const RELATIONSHIPS = {
   supersedes: {
     label: 'supersedes',
     inverseLabel: 'is superseded by',
-    from: [...SUBJECTS, 'procedure'],
-    to: [...SUBJECTS, 'procedure'],
+    from: LINKABLE,
+    to: LINKABLE,
+    acyclic: true,
+    symmetric: false,
+    evidence: 'none',
+  },
+  /** Process ordering between guides: "<guide> follows <prerequisite guide>". */
+  follows: {
+    label: 'follows',
+    inverseLabel: 'is followed by',
+    from: ['guide'],
+    to: ['guide'],
     acyclic: true,
     symmetric: false,
     evidence: 'none',

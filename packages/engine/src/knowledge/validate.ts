@@ -84,6 +84,14 @@ export function validateKnowledge(input: KnowledgeInput): ValidationResult {
       origin: 'authored',
       source: n.file,
       aliases: [...n.aliases].sort(),
+      ...(n.guide && {
+        guide: {
+          docType: n.guide.docType,
+          categories: n.guide.categories,
+          appliesTo: n.guide.appliesTo,
+          verification: n.guide.verification.status,
+        },
+      }),
     });
     kindOf.set(n.id, n.kind);
     accepted.push(n);

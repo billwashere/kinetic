@@ -1,9 +1,10 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { resolvePath } from '../engine/workspace-config';
+import { resolvePath, loadWorkspaceConfig } from '../engine/workspace-config';
 import { validateLocale } from '../engine/locale-schema';
 import { DEFAULT_LOCALE } from './registry';
 import { loadKnowledgeDir } from './loader';
+import { loadGuidesDir } from './guides';
 import { validateKnowledge } from './validate';
 import { compileKnowledge, type ArtifactMap } from './compile';
 import type {
@@ -18,11 +19,15 @@ export interface SourcePaths {
   /** Engine package root (cwd for all pipeline scripts). */
   engineRoot: string;
   knowledgeDir: string;
+  /** Optional directory of user guides imported as `guide` nodes. */
+  guidesDir?: string;
   localesDir: string;
   generatedDir: string;
   publicDir: string;
   /** Root `file` evidence paths resolve against. */
   repoRoot: string;
+  /** Directory holding kinetic.config.json (the host monorepo when Kinetic is vendored). `file` evidence also resolves here. */
+  workspaceRoot?: string;
   docsVersion: string;
 }
 
@@ -42,6 +47,8 @@ export function defaultPaths(engineRoot = process.cwd()): SourcePaths {
     knowledgeDir:
       process.env.KINETIC_KNOWLEDGE_DIR ??
       resolvePath('knowledge', path.join(engineRoot, 'content/knowledge')),
+    guidesDir:
+      process.env.KINETIC_GUIDES_DIR || resolvePath('guides', '') || undefined,
     localesDir:
       process.env.KINETIC_LOCALES_DIR ??
       resolvePath('locales', path.join(engineRoot, 'content/locales')),
@@ -51,6 +58,7 @@ export function defaultPaths(engineRoot = process.cwd()): SourcePaths {
     publicDir:
       process.env.KINETIC_PUBLIC_DIR ?? resolvePath('public', path.join(engineRoot, 'public')),
     repoRoot: findRepoRoot(engineRoot),
+    workspaceRoot: loadWorkspaceConfig().configDir ?? undefined,
     docsVersion: process.env.DOCS_VERSION || 'v1.0',
   };
 }
@@ -69,6 +77,11 @@ export async function loadSources(paths: SourcePaths): Promise<LoadedKnowledge> 
 
   const { nodes, diagnostics } = await loadKnowledgeDir(paths.knowledgeDir, paths.repoRoot);
   loadDiagnostics.push(...diagnostics);
+  if (paths.guidesDir) {
+    const g = await loadGuidesDir(paths.guidesDir, paths.repoRoot);
+    nodes.push(...g.nodes);
+    loadDiagnostics.push(...g.diagnostics);
+  }
 
   const skeletonPath = path.join(paths.generatedDir, paths.docsVersion, 'extracted-skeleton.json');
   let skeleton: SkeletonPage[] = [];
@@ -105,17 +118,18 @@ export async function loadSources(paths: SourcePaths): Promise<LoadedKnowledge> 
     }
   }
 
+  const roots = [paths.repoRoot, paths.workspaceRoot].filter((r): r is string => !!r);
   const checkFile: KnowledgeInput['checkFile'] = (p, symbol) => {
-    const abs = path.resolve(paths.repoRoot, p);
-    // Evidence must point inside the repo; reject traversal rather than reading arbitrary files.
-    if (
-      !abs.startsWith(paths.repoRoot + path.sep) ||
-      !fs.existsSync(abs) ||
-      !fs.statSync(abs).isFile()
-    )
-      return 'missing-file';
-    if (symbol && !fs.readFileSync(abs, 'utf8').includes(symbol)) return 'missing-symbol';
-    return 'ok';
+    let result: ReturnType<KnowledgeInput['checkFile']> = 'missing-file';
+    for (const root of [...new Set(roots)]) {
+      const abs = path.resolve(root, p);
+      // Evidence must point inside a known root; reject traversal rather than reading arbitrary files.
+      if (!abs.startsWith(root + path.sep) || !fs.existsSync(abs) || !fs.statSync(abs).isFile())
+        continue;
+      if (!symbol || fs.readFileSync(abs, 'utf8').includes(symbol)) return 'ok';
+      result = 'missing-symbol';
+    }
+    return result;
   };
 
   return {
