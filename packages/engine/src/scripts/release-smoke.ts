@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import path from 'path';
 import fs from 'fs-extra';
-import { chromium } from '@playwright/test';
+import { chromium, type Page } from '@playwright/test';
 import { formatDiagnostic, hasErrors } from '../knowledge/model';
 import { verifyZip } from '../knowledge/verify';
 
@@ -21,6 +21,18 @@ async function newestZip(): Promise<string> {
     zips.map((z) => ({ z, t: fs.statSync(path.join(dir, z)).mtimeMs })).sort((a, b) => b.t - a.t)[0]
       .z,
   );
+}
+
+/** Runs axe-core in the page; serious/critical violations fail the smoke test. */
+async function expectAccessible(page: Page, label: string): Promise<void> {
+  await page.addScriptTag({ path: require.resolve('axe-core/axe.min.js') });
+  const violations = await page.evaluate<string[]>(`(async () => {
+    const r = await window.axe.run(document, { runOnly: ['wcag2a', 'wcag2aa', 'wcag21aa', 'best-practice'] });
+    return r.violations
+      .filter((v) => ['serious', 'critical'].includes(v.impact))
+      .map((v) => v.id + ': ' + v.nodes.slice(0, 6).map((n) => n.target.join(' ')).join(' | '));
+  })()`);
+  assert(violations.length === 0, `accessibility (${label}): ${violations.join('; ')}`);
 }
 
 function assert(cond: unknown, msg: string): asserts cond {
@@ -108,6 +120,8 @@ async function main(): Promise<void> {
       'inverse label on incoming edge',
     );
 
+    await expectAccessible(page, 'standalone explorer');
+
     // Bounded expansion.
     await page.getByRole('button', { name: 'Expand neighbourhood' }).click();
     await page.getByRole('heading', { name: 'Further out' }).waitFor();
@@ -171,6 +185,24 @@ async function main(): Promise<void> {
             new URL(href!, page.url()).href.split('#')[0],
           );
           assert(explorerResp.ok(), `explorer link resolves (${href})`);
+          // The in-page explorer island: hydrate, search, follow a relationship, expand, then audit.
+          const island = page.getByRole('region', { name: 'Explore the knowledge graph' });
+          await island.waitFor();
+          await island.getByRole('searchbox', { name: 'Search concepts' }).fill('authent');
+          await island
+            .getByRole('list', { name: 'Search results' })
+            .getByRole('button', { name: 'Authentication' })
+            .click();
+          await island.getByRole('heading', { level: 4, name: /Authentication/ }).waitFor();
+          assert(
+            (await island.getByRole('list', { name: 'Relationships' }).textContent())?.includes(
+              'is required by',
+            ),
+            'island shows inverse relationship',
+          );
+          await island.getByRole('button', { name: 'Expand neighbourhood' }).click();
+          await island.getByRole('heading', { name: 'Further out' }).waitFor();
+          await expectAccessible(page, `docs page at ${siteUrl}`);
           const sheetApplied = await page.evaluate(() => document.styleSheets.length > 0);
           assert(sheetApplied, `stylesheet loaded at ${siteUrl}`);
           // Follow in-page navigation: version/locale/prev/next links must stay inside the base.

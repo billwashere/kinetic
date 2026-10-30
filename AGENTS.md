@@ -459,6 +459,7 @@ pnpm knowledge:query <release-dir> node <id> --depth 2
 - URLs in the portal and release content must be document-relative (portal pages use `ROOT = '../../../'`). `verify.ts` rejects root-absolute URLs; Astro's `/_astro/` URLs are rewritten once in `relativizeAstroAssets`. Never add a `/…` link to the portal.
 - `release:build --site ../../apps/docs-portal/dist [--declare-missing-media]` includes the built Astro portal; undeclared missing media fails the build.
 - The portal's "Related knowledge" section (`RelatedKnowledge.astro`, `src/lib/knowledge.ts`) reads only the compiled files, never engine code. It is shown only for `compiled.json`'s `docsVersion`. Set `KINETIC_EXPLORER_PATH=` (empty) for a portal deployed without the explorer.
+- `KnowledgeExplorer.tsx` (island) fetches `${ROOT}../knowledge/` at runtime (`KINETIC_KNOWLEDGE_PATH=` empty disables it). The smoke test runs axe-core; keep new portal UI at WCAG AA contrast (use `slate-600` or darker for small text).
 - `file://` is unsupported for releases; use the bundled `serve.mjs`.
 
 ---

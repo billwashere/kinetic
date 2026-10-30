@@ -6,6 +6,7 @@ import DocLayout from '../../../layouts/DocLayout.astro';
 import KineticPlayer from '../../../components/KineticPlayer.tsx';
 import PageInject from '../../../plugins/PageInject.astro';
 import RelatedKnowledge from '../../../components/RelatedKnowledge.astro';
+import KnowledgeExplorer from '../../../components/KnowledgeExplorer.tsx';
 import { loadKnowledge, relatedFor } from '../../../lib/knowledge';
 
 // Pages are emitted as <version>/<locale>/<pageId>/index.html, so the site root is always three
@@ -149,6 +150,9 @@ const ROOT = '../../../';
 const explorerPath = process.env.KINETIC_EXPLORER_PATH ?? '../explorer/';
 const explorerHref = (id: string) =>
   explorerPath ? `${ROOT}${explorerPath}#${encodeURIComponent(id)}` : null;
+// Published knowledge files sit next to site/ in a release; the island fetches them at runtime.
+const knowledgePath = process.env.KINETIC_KNOWLEDGE_PATH ?? '../knowledge/';
+const knowledgeBase = knowledgePath ? `${ROOT}${knowledgePath}` : null;
 const { version, locale } = Astro.params;
 const { related, pageData, allVersions, versionUrls, allLocales, menuItems, prevPage, nextPage } =
   Astro.props;
@@ -187,7 +191,7 @@ const { related, pageData, allVersions, versionUrls, allLocales, menuItems, prev
     pageData.steps.filter((s: any) => s.type !== 'note').length > 0 && (
       <div class="flex items-center gap-2 mb-4 mt-8">
         <h2 class="text-lg font-bold text-slate-800">Instructions</h2>
-        <span class="text-xs font-semibold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+        <span class="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
           {pageData.steps.filter((s: any) => s.type !== 'note').length} steps
         </span>
       </div>
@@ -232,7 +236,18 @@ const { related, pageData, allVersions, versionUrls, allLocales, menuItems, prev
   </ol>
 
   <!-- Knowledge graph context for this procedure (from the compiled knowledge files) -->
-  <RelatedKnowledge items={related} explorerHref={explorerHref} />
+  <RelatedKnowledge items={related} explorerHref={explorerHref}>
+    {
+      knowledgeBase && related.length > 0 && (
+        <KnowledgeExplorer
+          rootId={`procedure:${pageData.id}`}
+          locale={locale}
+          dataBase={knowledgeBase}
+          client:visible
+        />
+      )
+    }
+  </RelatedKnowledge>
 
   <!-- Plugin injection point: feedback widget, related pages, comments, edit link -->
   <PageInject
