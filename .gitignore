@@ -37,3 +37,7 @@ dist/
 
 # OS
 .DS_Store
+
+# Astro generated (types and build cache)
+apps/docs-portal/.astro/
+apps/docs-portal/src/env.d.ts
