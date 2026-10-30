@@ -1,5 +1,7 @@
 # Kinetic Docs — Declarative Knowledge Graph: design and first slice
 
+Remaining work is tracked in [`TODO.md`](./TODO.md).
+
 Status: Phases 1–3 and 5 implemented, including the real Astro portal inside the release. Phase 4 is done apart from portal search; 6 and 7 are planned below.
 
 ## 1. Assessment of the existing system
