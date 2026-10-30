@@ -15,6 +15,8 @@
  * KINETIC_COLOR_SIDEBAR       — sidebar background colour
  * KINETIC_LOCALE_LABELS       — JSON string: {"en-US":"EN","ar-AE":"AR"}
  * KINETIC_LOCALE_NAMES        — JSON string: {"en-US":"English","ar-AE":"Arabic"}
+ * KINETIC_LOGO                — optional logo image URL (root-relative paths are made page-relative)
+ * KINETIC_SUPPORT_URL         — optional support link; the "Need help?" card is hidden when unset
  *
  * For subtree deployments, also set:
  * KINETIC_PUBLIC_DIR          — absolute path to the public/ directory (astro.config.mjs)
@@ -33,6 +35,8 @@ export const SITE = {
     'Step-by-step product documentation with video walkthroughs.',
   ),
   favicon: env('KINETIC_FAVICON', '/assets/favicon.ico'),
+  logo: env('KINETIC_LOGO', ''),
+  supportUrl: env('KINETIC_SUPPORT_URL', ''),
 } as const;
 
 export const THEME = {
@@ -53,6 +57,11 @@ export function themeStyleTag(): string {
     `--kinetic-bg:${THEME.bg};` +
     `--kinetic-surface:${THEME.surface};` +
     `--kinetic-sidebar:${THEME.sidebar};` +
+    `}` +
+    // Dark mode derives its tints from the primary colour so a rebrand needs no extra settings.
+    `.dark{` +
+    `--kinetic-primary-light:color-mix(in srgb,${THEME.primary} 18%,#0f172a);` +
+    `--kinetic-primary-mid:color-mix(in srgb,${THEME.primary} 45%,#0f172a);` +
     `}</style>`
   );
 }
@@ -84,3 +93,153 @@ export const LOCALE_NAMES: Record<string, string> = process.env.KINETIC_LOCALE_N
       'pt-BR': 'Portuguese',
       'ko-KR': 'Korean',
     };
+
+/** Interface chrome text. Page content stays in the engine's locale files; this is only UI labels. */
+const UI_EN = {
+  howTo: 'How-to guides',
+  tutorials: 'Tutorials',
+  explanation: 'Explanation',
+  search: 'Search documentation',
+  searchResults: 'Search results',
+  noResults: 'No results',
+  onThisPage: 'On this page',
+  relatedGuides: 'Related guides',
+  relatedConcepts: 'Related concepts',
+  needHelp: 'Need help?',
+  supportText: 'Contact the support team if you need help with this task.',
+  getSupport: 'Get support',
+  forLabel: 'For',
+  time: 'Time',
+  prerequisites: 'Prerequisites',
+  outcome: 'Outcome',
+  overview: 'Overview',
+  learnMore: 'Learn more about',
+  done: "You're done",
+  result: 'Result',
+  note: 'Note',
+  steps: 'Steps',
+  previous: 'Previous',
+  next: 'Next',
+  language: 'Language',
+  version: 'Version',
+  home: 'Home',
+  openNav: 'Open navigation',
+  closeNav: 'Close navigation',
+  darkMode: 'Dark mode',
+  primaryNav: 'Documentation sections',
+  pagesNav: 'Pages in this section',
+  breadcrumb: 'Breadcrumb',
+  pageNav: 'Page navigation',
+  relatedKnowledge: 'Related knowledge',
+  verifiedNote:
+    '"Verified" means the build checked the supporting evidence against the test steps or source files it cites.',
+  evidence: 'Evidence',
+  exploreInGraph: 'Explore in graph',
+  exploreGraph: 'Explore the knowledge graph',
+  searchConcepts: 'Search concepts',
+  relationshipTypes: 'Relationship types',
+  relationships: 'Relationships',
+  noRelationships: 'No relationships shown.',
+  furtherOut: 'Further out',
+  nothingFurther: 'Nothing further.',
+  expand: 'Expand neighbourhood',
+  collapse: 'Collapse neighbourhood',
+  backToProcedure: 'Back to this procedure',
+  loadingGraph: 'Loading graph…',
+  graphUnavailable:
+    'The interactive graph is unavailable here. The related knowledge above is still complete.',
+  boundedSubset: 'Showing a bounded subset; filter by relationship type to narrow.',
+  thisProcedure: 'this procedure',
+  verification: {
+    verified: 'verified',
+    asserted: 'asserted',
+    unevidenced: 'unevidenced',
+  } as Record<string, string>,
+  /** [label, inverse label] per relationship type; empty means "use the registry's English labels". */
+  relationLabels: {} as Record<string, [string, string]>,
+};
+export type UiStrings = typeof UI_EN;
+
+// Arabic chrome strings: written for this portal and pending native-speaker review.
+const UI_STRINGS: Record<string, Partial<UiStrings>> = {
+  'en-US': UI_EN,
+  'ar-AE': {
+    howTo: 'أدلة إرشادية',
+    tutorials: 'دروس تعليمية',
+    explanation: 'شروحات',
+    search: 'ابحث في الوثائق',
+    searchResults: 'نتائج البحث',
+    noResults: 'لا توجد نتائج',
+    onThisPage: 'في هذه الصفحة',
+    relatedGuides: 'أدلة ذات صلة',
+    relatedConcepts: 'مفاهيم ذات صلة',
+    needHelp: 'هل تحتاج إلى مساعدة؟',
+    supportText: 'تواصل مع فريق الدعم إذا احتجت إلى مساعدة في هذه المهمة.',
+    getSupport: 'تواصل مع الدعم',
+    forLabel: 'لمن',
+    time: 'الوقت',
+    prerequisites: 'المتطلبات المسبقة',
+    outcome: 'النتيجة',
+    overview: 'نظرة عامة',
+    learnMore: 'اعرف المزيد عن',
+    done: 'انتهيت',
+    result: 'النتيجة',
+    note: 'ملاحظة',
+    steps: 'الخطوات',
+    previous: 'السابق',
+    next: 'التالي',
+    language: 'اللغة',
+    version: 'الإصدار',
+    home: 'الرئيسية',
+    openNav: 'فتح التنقل',
+    closeNav: 'إغلاق التنقل',
+    darkMode: 'الوضع الداكن',
+    primaryNav: 'أقسام الوثائق',
+    pagesNav: 'صفحات هذا القسم',
+    breadcrumb: 'مسار التنقل',
+    pageNav: 'التنقل بين الصفحات',
+    relatedKnowledge: 'معارف ذات صلة',
+    verifiedNote:
+      '"تم التحقق" تعني أن البناء فحص الدليل الداعم مقابل خطوات الاختبار أو ملفات المصدر المذكورة.',
+    evidence: 'الدليل',
+    exploreInGraph: 'استكشف في المخطط',
+    exploreGraph: 'استكشف مخطط المعرفة',
+    searchConcepts: 'ابحث في المفاهيم',
+    relationshipTypes: 'أنواع العلاقات',
+    relationships: 'العلاقات',
+    noRelationships: 'لا توجد علاقات معروضة.',
+    furtherOut: 'أبعد من ذلك',
+    nothingFurther: 'لا شيء أبعد.',
+    expand: 'توسيع النطاق',
+    collapse: 'تضييق النطاق',
+    backToProcedure: 'العودة إلى هذا الإجراء',
+    loadingGraph: 'جارٍ تحميل المخطط…',
+    graphUnavailable: 'المخطط التفاعلي غير متاح هنا. المعارف ذات الصلة أعلاه مكتملة.',
+    boundedSubset: 'يُعرض جزء محدود؛ صفِّ حسب نوع العلاقة لتضييق النتائج.',
+    thisProcedure: 'هذا الإجراء',
+    verification: {
+      verified: 'تم التحقق',
+      asserted: 'مؤكَّد دون دليل آلي',
+      unevidenced: 'بلا دليل',
+    },
+    relationLabels: {
+      depends_on: ['يعتمد على', 'مطلوب لـ'],
+      part_of: ['جزء من', 'يحتوي على'],
+      implements: ['ينفّذ', 'يُنفَّذ بواسطة'],
+      uses: ['يستخدم', 'يُستخدَم بواسطة'],
+      configured_by: ['يُضبط بواسطة', 'يضبط'],
+      documented_by: ['موثَّق في', 'يوثّق'],
+      related_to: ['مرتبط بـ', 'مرتبط بـ'],
+      supersedes: ['يحل محل', 'حلّ محلّه'],
+    },
+  },
+};
+
+export function uiStrings(locale: string): UiStrings {
+  return { ...UI_EN, ...(UI_STRINGS[locale] ?? UI_STRINGS[locale.split('-')[0]] ?? {}) };
+}
+
+/** Root-relative site paths become page-relative; absolute URLs pass through unchanged. */
+export function siteUrl(root: string, url: string): string {
+  return url.startsWith('/') && !url.startsWith('//') ? root + url.slice(1) : url;
+}

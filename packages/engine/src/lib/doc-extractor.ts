@@ -33,14 +33,25 @@ export interface DocPage {
    * The Astro portal renders the page with written instructions only — no video player.
    */
   videoless?: boolean;
+  /**
+   * Diátaxis quadrant. Test-derived pages are procedures, so the default (omitted) is a how-to guide;
+   * mark a learning-oriented walkthrough as 'tutorial'.
+   */
+  diataxis?: 'tutorial';
 }
 
 export class DocStore {
   private pages: Record<string, DocPage> = {};
   private commentCounter = 0;
 
-  page(pageId: string, options: { videoless?: boolean } = {}): void {
-    this.pages[pageId] = { pageId, steps: [], ...(options.videoless ? { videoless: true } : {}) };
+  page(pageId: string, options: { videoless?: boolean; diataxis?: 'how-to' | 'tutorial' } = {}): void {
+    this.pages[pageId] = {
+      pageId,
+      steps: [],
+      ...(options.videoless ? { videoless: true } : {}),
+      // Only non-default values are serialised so existing skeletons stay byte-identical.
+      ...(options.diataxis === 'tutorial' ? { diataxis: 'tutorial' as const } : {}),
+    };
   }
 
   recordStep(pageId: string, stepId: string, textKey: string, anchor: DocStep['anchor']): void {

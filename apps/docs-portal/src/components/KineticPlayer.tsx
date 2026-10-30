@@ -34,7 +34,7 @@ export default function KineticPlayer({ videoUrl, vttUrl, locale = 'en' }: Kinet
   }
 
   return (
-    <div className="rounded-xl overflow-hidden shadow-2xl border border-slate-200 my-10 bg-slate-900 aspect-video">
+    <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 my-8 bg-slate-900 aspect-video">
       <video
         className="w-full h-full object-cover"
         controls

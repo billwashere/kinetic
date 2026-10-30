@@ -30,7 +30,8 @@ const { pageId, locale, version, title } = Astro.props;
     - Page-level comments (Giscus, Utterances)
     - Social share buttons
 
-  Example — "Was this helpful?" feedback:
+  Example — "Was this helpful?" feedback. NOTE: this needs a server endpoint, so it is an
+  online-only feature; do not enable it in static/offline releases (declare it in offline.json onlineOnly):
 
     <div class="mt-12 pt-6 border-t border-slate-200">
       <p class="text-sm font-medium text-slate-600 mb-3">Was this page helpful?</p>

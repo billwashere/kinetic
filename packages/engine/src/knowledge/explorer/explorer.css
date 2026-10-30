@@ -1,0 +1,83 @@
+:root {
+  --fg: #0f172a;
+  --muted: #475569;
+  --bg: #fff;
+  --line: #cbd5e1;
+  --accent: #1d4ed8;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e2e8f0;
+    --muted: #94a3b8;
+    --bg: #0f172a;
+    --line: #334155;
+    --accent: #93c5fd;
+  }
+}
+body {
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+  margin: 0;
+  padding: 1rem;
+  max-width: 64rem;
+  margin-inline: auto;
+}
+a {
+  color: var(--accent);
+}
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: end;
+}
+input,
+select,
+button {
+  font: inherit;
+  padding: 0.3rem 0.5rem;
+}
+main {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) 3fr;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+@media (max-width: 40rem) {
+  main {
+    grid-template-columns: 1fr;
+  }
+}
+ul {
+  padding-inline-start: 1.2rem;
+}
+.meta,
+.badge {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.badge {
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  padding: 0 0.4rem;
+  margin-inline-start: 0.3rem;
+}
+.badge.verified {
+  border-color: #16a34a;
+}
+.badge.unevidenced {
+  border-style: dashed;
+}
+fieldset {
+  border: 1px solid var(--line);
+}
+details {
+  margin-top: 0.2rem;
+}

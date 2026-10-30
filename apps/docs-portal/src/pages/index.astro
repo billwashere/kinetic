@@ -32,14 +32,11 @@ try {
   const firstPage = skeleton[0]?.pageId;
 
   if (latestVersion && firstLocale && firstPage) {
-    redirectTo = `/${latestVersion}/${firstLocale}/${firstPage}`;
+    // Relative so the redirect works under any base path.
+    redirectTo = `./${latestVersion}/${firstLocale}/${firstPage}/`;
   }
 } catch {
   // No content yet — fall through to the "not built" message
-}
-
-if (redirectTo) {
-  return Astro.redirect(redirectTo, 301);
 }
 ---
 
@@ -48,14 +45,26 @@ if (redirectTo) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Kinetic Docs</title>
+    {redirectTo && <meta http-equiv="refresh" content={`0;url=${redirectTo}`} />}
   </head>
   <body class="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
-    <div class="text-center px-6">
-      <h1 class="text-2xl font-bold text-slate-800 mb-3">No documentation found</h1>
-      <p class="text-slate-500">
-        Run <code class="bg-slate-100 px-1.5 py-0.5 rounded">pnpm build:pipeline</code> to generate the
-        documentation first.
-      </p>
-    </div>
+    {
+      redirectTo && (
+        <a href={redirectTo} class="text-blue-600">
+          Continue to the documentation
+        </a>
+      )
+    }
+    {
+      !redirectTo && (
+        <div class="text-center px-6">
+          <h1 class="text-2xl font-bold text-slate-800 mb-3">No documentation found</h1>
+          <p class="text-slate-500">
+            Run <code class="bg-slate-100 px-1.5 py-0.5 rounded">pnpm build:pipeline</code> to
+            generate the documentation first.
+          </p>
+        </div>
+      )
+    }
   </body>
 </html>

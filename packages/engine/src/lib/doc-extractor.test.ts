@@ -50,6 +50,12 @@ describe('DocStore', () => {
     expect(store.getPages()[0].videoless).toBe(true);
   });
 
+  it('records tutorial pages and omits the default how-to type', () => {
+    store.page('learn', { diataxis: 'tutorial' });
+    store.page('task', { diataxis: 'how-to' });
+    expect(store.getPages().map((p) => p.diataxis)).toEqual(['tutorial', undefined]);
+  });
+
   it('does not set videoless when no option is passed', () => {
     store.page('checkout');
     // videoless should be absent (undefined), not false — keeps the JSON clean

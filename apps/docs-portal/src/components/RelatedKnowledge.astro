@@ -1,0 +1,75 @@
+---
+import { relationPhrase, type RelatedItem } from '../lib/knowledge';
+import type { UiStrings } from '../config';
+
+interface Props {
+  items: RelatedItem[];
+  /** Link to the graph explorer for one node, or null when the explorer is not deployed alongside. */
+  explorerHref: (id: string) => string | null;
+  ui: UiStrings;
+}
+const { items, explorerHref, ui } = Astro.props;
+const badge: Record<string, string> = {
+  verified:
+    'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950 dark:text-emerald-200 dark:border-emerald-800',
+  asserted:
+    'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800',
+  unevidenced:
+    'bg-slate-50 text-slate-600 border-slate-300 border-dashed dark:bg-slate-900 dark:text-slate-300 dark:border-slate-600',
+};
+---
+
+{
+  items.length > 0 && (
+    <section
+      id="related-knowledge-section"
+      class="mt-12 border-t border-slate-200 pt-6 dark:border-slate-800"
+      aria-labelledby="related-knowledge"
+    >
+      <h2 id="related-knowledge" class="mb-1 text-lg font-bold text-slate-900 dark:text-white">
+        {ui.relatedKnowledge}
+      </h2>
+      <p class="mb-4 text-xs text-slate-600 dark:text-slate-400">{ui.verifiedNote}</p>
+      <ul class="list-none space-y-3 p-0" data-testid="related-knowledge">
+        {items.map((it) => (
+          <li class="rounded-lg border border-slate-200 px-4 py-3 dark:border-slate-800">
+            <p class="text-sm text-slate-700 dark:text-slate-200">
+              <strong class="text-slate-900 dark:text-white">{it.title}</strong>
+              <span class="text-xs text-slate-600 dark:text-slate-400"> ({it.kind})</span>
+              {' ' + relationPhrase(it, ui)}
+              <span
+                class={`ms-1 rounded-full border px-2 py-0.5 text-xs ${badge[it.verification] ?? ''}`}
+              >
+                {ui.verification[it.verification] ?? it.verification}
+              </span>
+            </p>
+            {it.summary && (
+              <p class="mt-1 text-sm text-slate-600 dark:text-slate-400">{it.summary}</p>
+            )}
+            {it.evidence.length > 0 && (
+              <details class="mt-1 text-xs text-slate-600 dark:text-slate-400">
+                <summary class="cursor-pointer k-focus rounded">
+                  {ui.evidence} ({it.evidence.length})
+                </summary>
+                <ul class="mt-1 list-disc ps-5" dir="ltr">
+                  {it.evidence.map((e) => (
+                    <li>{e}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            {explorerHref(it.id) && (
+              <a
+                class="text-xs font-medium k-text-primary hover:underline k-focus rounded"
+                href={explorerHref(it.id)}
+              >
+                {ui.exploreInGraph}
+              </a>
+            )}
+          </li>
+        ))}
+      </ul>
+      <slot />
+    </section>
+  )
+}
