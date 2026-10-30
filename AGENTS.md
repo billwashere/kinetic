@@ -478,6 +478,31 @@ Hand-written Markdown guides in a host repo can be imported into the knowledge g
 
 ---
 
+## Docker (serve the built docs)
+
+`Dockerfile` is multi-stage: the build stage runs `pnpm install --frozen-lockfile --ignore-scripts` (no browser download), builds renderer-compat, `knowledge:compile`, `astro build`, then `release:build --no-media --declare-missing-media --site ../../apps/docs-portal/dist` (same steps as CI; it does not run `assemble`, so no Chromium/FFmpeg). The runtime stage is `node:alpine`, non-root, and holds only the release directory plus `serve.mjs`.
+
+```bash
+docker build -t kinetic-docs .
+docker run --rm -p 8080:8080 kinetic-docs                      # http://localhost:8080/
+docker run --rm -p 8080:8080 -e BASE=/docs/ kinetic-docs        # http://localhost:8080/docs/
+```
+
+- Runtime env: `PORT` (default `8080`), `BASE` (default `/`; links are document-relative, so any base works), `HOST` (default `0.0.0.0`). `HEALTHCHECK` fetches `http://127.0.0.1:$PORT$BASE`.
+- **Host docs content** (config, locales, guides, generated, public) lives outside this repo. Pass the directory holding `kinetic.config.json` as the `workspace` build context; it is copied to `/workspace` and `KINETIC_CONFIG=/workspace/kinetic.config.json` is set when that file exists. Relative paths in the config (e.g. `paths.guides`) resolve against that directory.
+
+  ```bash
+  docker build --build-context workspace=/path/to/host/docs -t kinetic-docs .
+  # different config file name/location inside the workspace:
+  docker build --build-context workspace=/path/to/host --build-arg KINETIC_CONFIG_FILE=/workspace/docs/kinetic.config.json -t kinetic-docs .
+  ```
+
+  Without a `workspace` context the image serves this repo's own sample content. `--build-arg DOCS_VERSION=v2.0` overrides the version namespace. Requires BuildKit (default in current Docker).
+- `serve.mjs` is not in the release tree (only in the offline ZIP); the Dockerfile copies it from `packages/engine/src/knowledge/offline-serve.mjs`.
+- `file://` remains unsupported; the container is the HTTP host.
+
+---
+
 ## Portal Layout, Diátaxis and Procedure Style
 
 - **Diátaxis.** Pages extracted from Playwright tests are procedures, so they are *How-to guides* by default; `store.page(id, { diataxis: 'tutorial' })` marks a learning walkthrough. Knowledge concepts/features are *Explanation* (the explorer). Header tabs are those quadrants; the sidebar only lists the current quadrant, grouped by `breadcrumbs[0]` › `breadcrumbs[1]`.
