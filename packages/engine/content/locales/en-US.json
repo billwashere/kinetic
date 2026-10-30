@@ -1,17 +1,30 @@
 {
-  "locale": "en-US", "dir": "ltr",
+  "locale": "en-US",
+  "dir": "ltr",
   "pages": {
     "create_project": {
-      "title": "Creating a New Project", 
-      "description": "Learn how to scaffold a new project. **Markdown supported.**", 
-      "breadcrumbs": ["Workspace", "Projects"]
+      "title": "Create a project",
+      "description": "Create a project from the projects dashboard and confirm that it's ready to use.",
+      "breadcrumbs": ["Workspace", "Projects"],
+      "audience": "Workspace members",
+      "duration": "About 2 minutes",
+      "prerequisites": ["A registered account in the workspace"],
+      "outcome": "A new project that appears on the projects dashboard.",
+      "overview": "A project groups related work inside a workspace. You create one from the projects dashboard by giving it a name.",
+      "done": "Your project is ready and appears on the projects dashboard."
     }
   },
   "strings": {
-    "login_email": "First, enter your registered email address.",
-    "nav_to_project": "Navigate to the **projects dashboard**.",
-    "enter_name": "Enter a name for your new project.",
-    "click_submit": "Click submit to finish.",
-    "verify_success": "Notice the success message indicating the project is ready."
+    "login_email": "Enter your registered email address.",
+    "nav_to_project": "Go to the **Projects** dashboard.",
+    "enter_name": "Enter a name for the project.",
+    "click_submit": "Select **Submit**.",
+    "verify_success": "A success message confirms that the project is ready."
+  },
+  "stepTitles": {
+    "login_email": "Sign in",
+    "nav_to_project": "Open the projects dashboard",
+    "enter_name": "Name the project",
+    "click_submit": "Create the project"
   }
 }

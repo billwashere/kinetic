@@ -45,8 +45,11 @@ export interface RelatedItem {
   title: string;
   kind: string;
   summary: string;
-  /** Full phrase, e.g. "is documented by this procedure". */
-  relation: string;
+  type: string;
+  /** True when the other node is the edge's source ("<other> is documented by this procedure"). */
+  otherIsSource: boolean;
+  /** Registry (English) label to use when the UI has no translation. */
+  registryLabel: string;
   verification: string;
   evidence: string[];
 }
@@ -116,11 +119,44 @@ export function relatedFor(
       title: t?.title ?? otherId,
       kind: other.kind,
       summary: t?.summary ?? '',
+      type: e.type,
+      otherIsSource: e.target === id,
       // Phrased with the other node first: "<Project> is documented by this procedure".
-      relation: `${e.source === id ? def.inverseLabel : def.label} this procedure`,
+      registryLabel: e.source === id ? def.inverseLabel : def.label,
       verification: e.verification,
       evidence: e.evidence.map(describeEvidence),
     });
   }
   return items.sort((a, b) => a.kind.localeCompare(b.kind) || a.title.localeCompare(b.title));
+}
+
+/** Authored knowledge nodes as header-search entries, linking into the explorer. */
+export function searchEntriesFor(
+  k: Knowledge,
+  locale: string,
+  explorerUrl: (id: string) => string | null,
+): { url: string; title: string; summary: string; kind: string }[] {
+  const texts = k.text[locale] ?? {};
+  const out = [];
+  for (const n of k.nodes.values()) {
+    const url = explorerUrl(n.id);
+    if (n.origin !== 'authored' || !url) continue;
+    out.push({
+      url,
+      title: texts[n.id]?.title ?? n.id,
+      summary: texts[n.id]?.summary ?? '',
+      kind: n.kind,
+    });
+  }
+  return out.sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/** "<other> is documented by this procedure", localised where the UI has relationship labels. */
+export function relationPhrase(
+  item: RelatedItem,
+  ui: { relationLabels: Record<string, [string, string]>; thisProcedure: string },
+): string {
+  const t = ui.relationLabels[item.type];
+  const label = t ? t[item.otherIsSource ? 0 : 1] : item.registryLabel;
+  return `${label} ${ui.thisProcedure}`;
 }

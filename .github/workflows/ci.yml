@@ -28,6 +28,10 @@ jobs:
 
       # Astro only: the full media pipeline (Playwright/TTS/ffmpeg) is not re-run for ordinary doc edits.
       # Media that was not rendered is declared in the manifest rather than silently dangling.
+      # Microsoft Writing Style Guide checks for procedures. Advisory: prints warnings, never fails the build.
+      - name: Lint procedure style
+        run: pnpm --filter @kinetic/engine docs:lint
+
       - name: Compile knowledge for the portal
         run: pnpm --filter @kinetic/engine knowledge:compile
 

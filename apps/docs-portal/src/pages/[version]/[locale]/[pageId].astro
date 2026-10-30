@@ -7,13 +7,32 @@ import KineticPlayer from '../../../components/KineticPlayer.tsx';
 import PageInject from '../../../plugins/PageInject.astro';
 import RelatedKnowledge from '../../../components/RelatedKnowledge.astro';
 import KnowledgeExplorer from '../../../components/KnowledgeExplorer.tsx';
-import { loadKnowledge, relatedFor } from '../../../lib/knowledge';
+import { loadKnowledge, relatedFor, searchEntriesFor } from '../../../lib/knowledge';
+import { SITE, uiStrings } from '../../../config';
+import {
+  ArrowRight,
+  CircleCheck,
+  Clock,
+  FileText,
+  Headset,
+  Info,
+  Lightbulb,
+  Link as LinkIcon,
+  SquareCheck,
+  Target,
+  UserRound,
+} from 'lucide-react';
 
 // Pages are emitted as <version>/<locale>/<pageId>/index.html, so the site root is always three
 // levels up. Relative URLs (instead of '/…') keep the build relocatable: CDN path, intranet, or ZIP.
 export async function getStaticPaths() {
   // getStaticPaths is hoisted by Astro and cannot see module-scope constants, so this is declared here.
   const ROOT = '../../../';
+  // The release layout puts the explorer next to site/; set KINETIC_EXPLORER_PATH='' when it is absent.
+  const explorerPath = process.env.KINETIC_EXPLORER_PATH ?? '../explorer/';
+  const explorerUrl = (id?: string) =>
+    explorerPath ? `${ROOT}${explorerPath}${id ? `#${encodeURIComponent(id)}` : ''}` : null;
+
   const generatedDir =
     process.env.KINETIC_GENERATED_DIR ?? path.resolve('../../packages/engine/generated');
   if (!fs.existsSync(generatedDir)) return [];
@@ -21,8 +40,7 @@ export async function getStaticPaths() {
   const versions = await fs.readdir(generatedDir);
   const localesDir =
     process.env.KINETIC_LOCALES_DIR ?? path.resolve('../../packages/engine/content/locales');
-  const localeFiles = await fs.readdir(localesDir);
-  const locales = localeFiles
+  const locales = (await fs.readdir(localesDir))
     .filter((f: string) => f.endsWith('.json'))
     .map((f: string) => path.basename(f, '.json'));
 
@@ -39,33 +57,67 @@ export async function getStaticPaths() {
   }
 
   const knowledge = loadKnowledge();
+  // Only reference media that was actually rendered, so pages never show a broken player.
+  const publicDir = process.env.KINETIC_PUBLIC_DIR ?? path.resolve('../../packages/engine/public');
+  const media = (rel: string) =>
+    fs.existsSync(path.join(publicDir, rel)) ? `${ROOT}${rel}` : null;
+  const plain = (md: string) => md.replace(/\*\*|__|[*_`]/g, '').trim();
+  // Diátaxis: test-derived pages are procedures (how-to guides) unless marked as tutorials.
+  const sectionOf = (p: any): 'howTo' | 'tutorials' =>
+    p.diataxis === 'tutorial' ? 'tutorials' : 'howTo';
+
   const paths = [];
 
   for (const version of Object.keys(skeletons)) {
     const skeleton = skeletons[version];
 
     for (const locale of locales) {
-      const localePath = path.join(
-        process.env.KINETIC_LOCALES_DIR ??
-          process.env.KINETIC_LOCALES_DIR ??
-          path.resolve('../../packages/engine/content/locales'),
-        `${locale}.json`,
-      );
+      const localePath = path.join(localesDir, `${locale}.json`);
       if (!fs.existsSync(localePath)) continue;
 
       const localeData = await fs.readJson(localePath);
+      const ui = uiStrings(locale);
       const textDirection: 'ltr' | 'rtl' = localeData.dir ?? 'ltr';
       const lang = localeData.locale ?? locale;
+      const pageUrl = (id: string) => `${ROOT}${version}/${locale}/${id}/`;
 
-      const menuItems = skeleton.map((p: any) => ({
-        id: p.pageId,
-        title: localeData.pages[p.pageId]?.title ?? p.pageId,
-        url: `${ROOT}${version}/${locale}/${p.pageId}/`,
-      }));
+      const allNav = skeleton.map((p: any) => {
+        const crumbs: string[] = localeData.pages[p.pageId]?.breadcrumbs ?? [];
+        return {
+          id: p.pageId,
+          title: localeData.pages[p.pageId]?.title ?? p.pageId,
+          description: localeData.pages[p.pageId]?.description ?? '',
+          url: pageUrl(p.pageId),
+          group: crumbs[0] ?? '',
+          subgroup: crumbs[1] ?? null,
+          section: sectionOf(p),
+        };
+      });
+
+      const searchEntries = [
+        ...allNav.map((n: any) => ({
+          url: n.url,
+          title: n.title,
+          summary: plain(n.description),
+          kind: 'guide',
+        })),
+        ...(knowledge && knowledge.docsVersion === version
+          ? searchEntriesFor(knowledge, locale, (id) => explorerUrl(id))
+          : []),
+      ];
 
       for (let i = 0; i < skeleton.length; i++) {
         const page = skeleton[i];
         const pageDict = localeData.pages[page.pageId] ?? {};
+        const section = sectionOf(page);
+
+        const sections = (['howTo', 'tutorials'] as const)
+          .map((key) => ({ key, first: allNav.find((n: any) => n.section === key) }))
+          .filter((s) => s.first)
+          .map((s) => ({ key: s.key, url: s.first!.url, active: s.key === section }));
+        if (knowledge && explorerUrl()) {
+          sections.push({ key: 'explanation' as any, url: explorerUrl()!, active: false });
+        }
 
         // Safe version URLs: if the current page exists in the target version, link to it.
         // Otherwise fall back to the first page of that version so no link 404s.
@@ -78,33 +130,70 @@ export async function getStaticPaths() {
             : `${ROOT}${v}/${locale}/${targetSkeleton[0]?.pageId ?? ''}/`;
         }
 
-        const videoUrl = page.videoless
-          ? null
-          : `${ROOT}video-cache/${version}/${locale}_${page.pageId}.mp4`;
-        const vttUrl = page.videoless
-          ? null
-          : `${ROOT}video-cache/${version}/${locale}_${page.pageId}.vtt`;
+        // Microsoft-style procedure: one numbered step per action. An assertion is the *result* of the
+        // step before it (not a step of its own); a note belongs to the step it follows.
+        type Step = {
+          n: number;
+          id: string;
+          title: string | null;
+          navLabel: string;
+          html: string;
+          notes: string[];
+          result: string | null;
+        };
+        const steps: Step[] = [];
+        const intro: { kind: 'note' | 'result'; html: string }[] = [];
+        for (const s of page.steps) {
+          const text: string = localeData.strings[s.textKey] ?? '';
+          const html = marked.parseInline(text) as string;
+          const last = steps[steps.length - 1];
+          if (s.type === 'action') {
+            const title = localeData.stepTitles?.[s.textKey] ?? null;
+            const label = title ?? plain(text);
+            steps.push({
+              n: steps.length + 1,
+              id: `step-${steps.length + 1}`,
+              title,
+              navLabel: label.length > 48 ? label.slice(0, 47) + '…' : label,
+              html,
+              notes: [],
+              result: null,
+            });
+          } else if (s.type === 'assertion') {
+            if (last && !last.result) last.result = html;
+            else intro.push({ kind: 'result', html });
+          } else if (s.type === 'note') {
+            if (last) last.notes.push(html);
+            else intro.push({ kind: 'note', html });
+          }
+        }
 
-        // Build step list, preserving type for callout vs numbered rendering.
-        // Track step number separately so notes don't increment the count.
-        let actionCount = 0;
-        const steps = page.steps.map((s: any) => {
-          const isAction = s.type === 'action' || s.type === 'assertion';
-          if (isAction) actionCount++;
-          return {
-            type: s.type as 'action' | 'assertion' | 'note',
-            isAssertion: s.type === 'assertion',
-            stepNumber: isAction ? actionCount : null,
-            html: marked.parseInline(localeData.strings[s.textKey] ?? ''),
-          };
-        });
-
+        const related = knowledge ? relatedFor(knowledge, version, locale, page.pageId) : [];
+        const learnMore = related.find((r) => r.kind === 'concept') ?? related[0] ?? null;
+        const thisNav = allNav[i];
         const prevSkeleton = skeleton[i - 1];
         const nextSkeleton = skeleton[i + 1];
 
         paths.push({
           params: { version, locale, pageId: page.pageId },
           props: {
+            ui,
+            related,
+            learnMore:
+              learnMore && explorerUrl(learnMore.id)
+                ? { title: learnMore.title, url: explorerUrl(learnMore.id) }
+                : null,
+            explorerBase: explorerPath ? `${ROOT}${explorerPath}` : null,
+            relatedGuides: allNav
+              .filter(
+                (n: any) =>
+                  n.id !== page.pageId &&
+                  n.group === thisNav.group &&
+                  n.subgroup === thisNav.subgroup &&
+                  n.section === section,
+              )
+              .slice(0, 5)
+              .map((n: any) => ({ title: n.title, url: n.url, description: plain(n.description) })),
             pageData: {
               id: page.pageId,
               title: pageDict.title ?? page.pageId,
@@ -113,25 +202,40 @@ export async function getStaticPaths() {
               breadcrumbs: pageDict.breadcrumbs ?? [],
               dir: textDirection,
               lang,
-              videoless: page.videoless ?? false,
-              videoUrl,
-              vttUrl,
+              videoUrl: page.videoless
+                ? null
+                : media(`video-cache/${version}/${locale}_${page.pageId}.mp4`),
+              vttUrl: page.videoless
+                ? null
+                : media(`video-cache/${version}/${locale}_${page.pageId}.vtt`),
+              facts: {
+                audience: pageDict.audience ?? null,
+                duration: pageDict.duration ?? null,
+                prerequisites: (pageDict.prerequisites ?? []).map((p: string) =>
+                  marked.parseInline(p),
+                ),
+                outcome: pageDict.outcome ? marked.parseInline(pageDict.outcome) : null,
+              },
+              overviewHtml: pageDict.overview ? marked.parseInline(pageDict.overview) : null,
+              doneHtml: pageDict.done ? marked.parseInline(pageDict.done) : null,
               steps,
+              intro,
             },
-            related: knowledge ? relatedFor(knowledge, version, locale, page.pageId) : [],
+            sections,
+            searchEntries,
             allVersions: versions,
             versionUrls,
             allLocales: locales,
-            menuItems,
+            menuItems: allNav.filter((n: any) => n.section === section),
             prevPage: prevSkeleton
               ? {
-                  url: `${ROOT}${version}/${locale}/${prevSkeleton.pageId}/`,
+                  url: pageUrl(prevSkeleton.pageId),
                   title: localeData.pages[prevSkeleton.pageId]?.title ?? prevSkeleton.pageId,
                 }
               : null,
             nextPage: nextSkeleton
               ? {
-                  url: `${ROOT}${version}/${locale}/${nextSkeleton.pageId}/`,
+                  url: pageUrl(nextSkeleton.pageId),
                   title: localeData.pages[nextSkeleton.pageId]?.title ?? nextSkeleton.pageId,
                 }
               : null,
@@ -145,22 +249,45 @@ export async function getStaticPaths() {
 }
 
 const ROOT = '../../../';
-// The release layout puts the explorer next to site/ (…/site/<v>/<l>/<p>/ -> …/explorer/).
-// Set KINETIC_EXPLORER_PATH to '' for a portal deployed without it.
-const explorerPath = process.env.KINETIC_EXPLORER_PATH ?? '../explorer/';
-const explorerHref = (id: string) =>
-  explorerPath ? `${ROOT}${explorerPath}#${encodeURIComponent(id)}` : null;
 // Published knowledge files sit next to site/ in a release; the island fetches them at runtime.
 const knowledgePath = process.env.KINETIC_KNOWLEDGE_PATH ?? '../knowledge/';
 const knowledgeBase = knowledgePath ? `${ROOT}${knowledgePath}` : null;
 const { version, locale } = Astro.params;
-const { related, pageData, allVersions, versionUrls, allLocales, menuItems, prevPage, nextPage } =
-  Astro.props;
+const {
+  ui,
+  related,
+  learnMore,
+  explorerBase,
+  relatedGuides,
+  pageData,
+  sections,
+  searchEntries,
+  allVersions,
+  versionUrls,
+  allLocales,
+  menuItems,
+  prevPage,
+  nextPage,
+} = Astro.props;
+const explorerHref = (id: string) =>
+  explorerBase ? `${explorerBase}#${encodeURIComponent(id)}` : null;
+const f = pageData.facts;
+const facts = [
+  f.audience && { icon: UserRound, label: ui.forLabel, html: f.audience },
+  f.duration && { icon: Clock, label: ui.time, html: f.duration },
+  f.prerequisites.length > 0 && {
+    icon: SquareCheck,
+    label: ui.prerequisites,
+    list: f.prerequisites,
+  },
+  f.outcome && { icon: Target, label: ui.outcome, html: f.outcome },
+].filter(Boolean) as { icon: any; label: string; html?: string; list?: string[] }[];
 ---
 
 <DocLayout
   title={pageData.title}
   description={pageData.description}
+  descriptionHtml={pageData.descriptionHtml}
   dir={pageData.dir}
   lang={pageData.lang}
   allVersions={allVersions}
@@ -174,11 +301,71 @@ const { related, pageData, allVersions, versionUrls, allLocales, menuItems, prev
   breadcrumbs={pageData.breadcrumbs}
   prevPage={prevPage}
   nextPage={nextPage}
+  sections={sections}
+  searchEntries={searchEntries}
 >
-  <!-- Description -->
-  <p class="text-xl text-slate-500 leading-relaxed mb-8" set:html={pageData.descriptionHtml} />
+  {
+    facts.length > 0 && (
+      <dl
+        class="mb-8 grid grid-cols-1 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-2 lg:grid-cols-4 dark:border-slate-800 dark:bg-slate-800"
+        data-testid="page-facts"
+      >
+        {facts.map((item) => (
+          <div class="bg-slate-50 p-4 dark:bg-slate-900">
+            <dt class="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-slate-100">
+              <item.icon className="h-5 w-5 flex-shrink-0 k-text-primary" aria-hidden="true" />
+              {item.label}
+            </dt>
+            {item.html && (
+              <dd
+                class="mt-1 ps-7 text-sm text-slate-600 dark:text-slate-300"
+                set:html={item.html}
+              />
+            )}
+            {item.list && (
+              <dd class="mt-1 ps-7">
+                <ul class="list-disc ps-4 text-sm text-slate-600 dark:text-slate-300">
+                  {item.list.map((li) => (
+                    <li set:html={li} />
+                  ))}
+                </ul>
+              </dd>
+            )}
+          </div>
+        ))}
+      </dl>
+    )
+  }
 
-  <!-- Video player (null for videoless pages — layout flows straight to steps) -->
+  {
+    pageData.overviewHtml && (
+      <aside
+        class="mb-8 flex gap-4 rounded-xl border k-border-primary-mid k-bg-primary-light p-5"
+        aria-labelledby="overview-h"
+      >
+        <Lightbulb className="mt-0.5 h-6 w-6 flex-shrink-0 k-text-primary" aria-hidden="true" />
+        <div class="flex-1">
+          <h2 id="overview-h" class="font-semibold k-text-primary">
+            {ui.overview}
+          </h2>
+          <p
+            class="mt-1 text-sm leading-relaxed text-slate-700 dark:text-slate-200"
+            set:html={pageData.overviewHtml}
+          />
+          {learnMore && (
+            <a
+              href={learnMore.url}
+              class="mt-3 inline-flex items-center gap-1 text-sm font-medium k-text-primary hover:underline k-focus rounded"
+            >
+              {ui.learnMore} {learnMore.title}
+              <ArrowRight className="h-4 w-4 rtl:rotate-180" aria-hidden="true" />
+            </a>
+          )}
+        </div>
+      </aside>
+    )
+  }
+
   <KineticPlayer
     videoUrl={pageData.videoUrl}
     vttUrl={pageData.vttUrl}
@@ -186,63 +373,127 @@ const { related, pageData, allVersions, versionUrls, allLocales, menuItems, prev
     client:load
   />
 
-  <!-- Step count indicator -->
   {
-    pageData.steps.filter((s: any) => s.type !== 'note').length > 0 && (
-      <div class="flex items-center gap-2 mb-4 mt-8">
-        <h2 class="text-lg font-bold text-slate-800">Instructions</h2>
-        <span class="text-xs font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-          {pageData.steps.filter((s: any) => s.type !== 'note').length} steps
-        </span>
+    pageData.intro.map((b: any) => (
+      <p class="mb-4 flex gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-200">
+        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 k-text-primary" aria-hidden="true" />
+        <span set:html={b.html} />
+      </p>
+    ))
+  }
+
+  {
+    pageData.steps.length > 0 && (
+      <section aria-labelledby="steps-h" class="mt-8">
+        <h2 id="steps-h" class="sr-only">
+          {ui.steps}
+        </h2>
+        <ol class="relative list-none p-0" data-testid="procedure-steps">
+          {pageData.steps.map((step: any, i: number) => (
+            <li id={step.id} class="relative flex gap-4 pb-8 last:pb-0 scroll-mt-24">
+              {i < pageData.steps.length - 1 && (
+                <span
+                  class="absolute start-[1.125rem] top-10 bottom-0 w-px bg-slate-200 dark:bg-slate-800"
+                  aria-hidden="true"
+                />
+              )}
+              <span
+                class="relative z-10 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full k-bg-primary text-sm font-semibold"
+                aria-hidden="true"
+              >
+                {step.n}
+              </span>
+              <div class="min-w-0 flex-1 pt-1.5">
+                {step.title && (
+                  <h3 class="text-lg font-semibold text-slate-900 dark:text-white">{step.title}</h3>
+                )}
+                <p
+                  class={
+                    (step.title ? 'mt-1 ' : '') +
+                    'text-slate-700 leading-relaxed dark:text-slate-200'
+                  }
+                  set:html={step.html}
+                />
+                {step.notes.map((n: string) => (
+                  <p class="mt-3 flex gap-2 rounded-lg border k-border-primary-mid k-bg-primary-light px-3 py-2 text-sm text-slate-700 dark:text-slate-200">
+                    <Info
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 k-text-primary"
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <span class="font-semibold">{ui.note}: </span>
+                      <span set:html={n} />
+                    </span>
+                  </p>
+                ))}
+                {step.result && (
+                  <p class="mt-2 flex gap-2 text-sm text-slate-600 dark:text-slate-300">
+                    <CircleCheck
+                      className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-700 dark:text-emerald-400"
+                      aria-hidden="true"
+                    />
+                    <span>
+                      <span class="sr-only">{ui.result}: </span>
+                      <span set:html={step.result} />
+                    </span>
+                  </p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+    )
+  }
+
+  {
+    pageData.doneHtml && (
+      <div
+        class="mt-8 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950"
+        role="status"
+      >
+        <CircleCheck
+          className="h-6 w-6 flex-shrink-0 text-emerald-700 dark:text-emerald-400"
+          aria-hidden="true"
+        />
+        <div>
+          <p class="font-semibold text-emerald-900 dark:text-emerald-200">{ui.done}</p>
+          <p
+            class="mt-0.5 text-sm text-emerald-900 dark:text-emerald-100"
+            set:html={pageData.doneHtml}
+          />
+        </div>
       </div>
     )
   }
 
-  <!-- Step list -->
-  <ol class="space-y-3 list-none p-0">
-    {
-      pageData.steps.map((step: any) => {
-        if (step.type === 'note') {
-          return (
-            <li class="pl-0">
-              <div class="kinetic-callout rounded-lg border px-4 py-3 flex gap-3 items-start">
-                <span
-                  class="kinetic-callout-icon mt-0.5 flex-shrink-0 text-base"
-                  aria-hidden="true"
-                >
-                  ℹ
-                </span>
-                <span class="text-sm leading-relaxed" set:html={step.html} />
-              </div>
-            </li>
-          );
-        }
-
-        const badge = step.isAssertion
-          ? `<span class="flex-shrink-0 w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-xs font-bold mt-0.5" aria-label="Verify">✓</span>`
-          : `<span class="kinetic-badge-action flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mt-0.5">${step.stepNumber}</span>`;
-
-        return (
-          <li class="flex gap-3 items-start">
-            <Fragment set:html={badge} />
-            <span
-              class={`text-sm leading-relaxed pt-0.5 ${step.isAssertion ? 'text-slate-500 italic' : 'text-slate-700'}`}
-              set:html={step.html}
-            />
-          </li>
-        );
-      })
-    }
-  </ol>
-
   <!-- Knowledge graph context for this procedure (from the compiled knowledge files) -->
-  <RelatedKnowledge items={related} explorerHref={explorerHref}>
+  <RelatedKnowledge items={related} explorerHref={explorerHref} ui={ui}>
     {
       knowledgeBase && related.length > 0 && (
         <KnowledgeExplorer
           rootId={`procedure:${pageData.id}`}
           locale={locale}
           dataBase={knowledgeBase}
+          labels={{
+            exploreGraph: ui.exploreGraph,
+            searchConcepts: ui.searchConcepts,
+            searchResults: ui.searchResults,
+            noResults: ui.noResults,
+            relationshipTypes: ui.relationshipTypes,
+            relationships: ui.relationships,
+            noRelationships: ui.noRelationships,
+            furtherOut: ui.furtherOut,
+            nothingFurther: ui.nothingFurther,
+            expand: ui.expand,
+            collapse: ui.collapse,
+            backToProcedure: ui.backToProcedure,
+            loadingGraph: ui.loadingGraph,
+            graphUnavailable: ui.graphUnavailable,
+            boundedSubset: ui.boundedSubset,
+            verification: ui.verification,
+            relationLabels: ui.relationLabels,
+          }}
           client:visible
         />
       )
@@ -257,4 +508,139 @@ const { related, pageData, allVersions, versionUrls, allLocales, menuItems, prev
     version={version}
     title={pageData.title}
   />
+
+  <!-- ── Right rail ── -->
+  <Fragment slot="rail">
+    {
+      pageData.steps.length > 0 && (
+        <nav
+          aria-labelledby="otp-h"
+          class="rounded-xl border border-slate-200 p-5 dark:border-slate-800"
+        >
+          <h2 id="otp-h" class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+            {ui.onThisPage}
+          </h2>
+          <ol class="space-y-2 list-none p-0">
+            {pageData.steps.map((s: any) => (
+              <li>
+                <a
+                  href={`#${s.id}`}
+                  class="flex items-start gap-3 text-sm text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white k-focus rounded"
+                >
+                  <span
+                    class="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-slate-700 text-[11px] font-semibold text-white dark:bg-slate-300 dark:text-slate-900"
+                    aria-hidden="true"
+                  >
+                    {s.n}
+                  </span>
+                  <span>{s.navLabel}</span>
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )
+    }
+
+    {
+      relatedGuides.length > 0 && (
+        <section aria-labelledby="rg-h" class="px-1">
+          <h2 id="rg-h" class="mb-3 text-sm font-semibold text-slate-900 dark:text-white">
+            {ui.relatedGuides}
+          </h2>
+          <ul class="space-y-4 list-none p-0">
+            {relatedGuides.map((g: any) => (
+              <li class="flex gap-3">
+                <FileText
+                  className="mt-0.5 h-4 w-4 flex-shrink-0 text-slate-500"
+                  aria-hidden="true"
+                />
+                <div>
+                  <a
+                    href={g.url}
+                    class="text-sm font-medium k-text-primary hover:underline k-focus rounded"
+                  >
+                    {g.title}
+                  </a>
+                  {g.description && (
+                    <p class="mt-0.5 text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                      {g.description}
+                    </p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+
+    {
+      SITE.supportUrl && (
+        <section
+          aria-labelledby="help-h"
+          class="rounded-xl border k-border-primary-mid k-bg-primary-light p-5"
+        >
+          <div class="flex gap-3">
+            <Headset className="h-5 w-5 flex-shrink-0 k-text-primary" aria-hidden="true" />
+            <div>
+              <h2 id="help-h" class="text-sm font-semibold k-text-primary">
+                {ui.needHelp}
+              </h2>
+              <p class="mt-1 text-xs text-slate-700 dark:text-slate-200">{ui.supportText}</p>
+              <a
+                href={SITE.supportUrl}
+                class="mt-3 inline-flex items-center gap-1 rounded-md border k-border-primary-mid bg-white px-3 py-1.5 text-xs font-medium k-text-primary hover:shadow-sm dark:bg-slate-900 k-focus"
+              >
+                {ui.getSupport}
+                <ArrowRight className="h-3.5 w-3.5 rtl:rotate-180" aria-hidden="true" />
+              </a>
+            </div>
+          </div>
+        </section>
+      )
+    }
+
+    {
+      related.length > 0 && (
+        <section
+          aria-labelledby="rc-h"
+          class="rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-900"
+        >
+          <h2
+            id="rc-h"
+            class="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white"
+          >
+            <LinkIcon className="h-4 w-4" aria-hidden="true" />
+            {ui.relatedConcepts}
+          </h2>
+          <ul class="space-y-3 list-none p-0">
+            {related.slice(0, 5).map((r: any) => (
+              <li>
+                {explorerHref(r.id) ? (
+                  <a
+                    href={explorerHref(r.id)}
+                    class="flex items-center justify-between gap-2 text-sm font-medium k-text-primary hover:underline k-focus rounded"
+                  >
+                    <span>{r.title}</span>
+                    <ArrowRight
+                      className="h-4 w-4 flex-shrink-0 rtl:rotate-180"
+                      aria-hidden="true"
+                    />
+                  </a>
+                ) : (
+                  <span class="text-sm font-medium">{r.title}</span>
+                )}
+                {r.summary && (
+                  <p class="mt-0.5 text-xs text-slate-600 dark:text-slate-400 line-clamp-2">
+                    {r.summary}
+                  </p>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+    }
+  </Fragment>
 </DocLayout>

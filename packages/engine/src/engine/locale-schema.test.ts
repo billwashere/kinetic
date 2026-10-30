@@ -22,6 +22,34 @@ describe('LocaleSchema', () => {
     expect(() => validateLocale(validLocale, 'en-US.json')).not.toThrow();
   });
 
+  it('accepts optional procedure framing and step titles', () => {
+    const framed = {
+      ...validLocale,
+      pages: {
+        create_project: {
+          ...validLocale.pages.create_project,
+          audience: 'Project owners',
+          duration: '2 minutes',
+          prerequisites: ['A registered account'],
+          outcome: 'A new project.',
+          overview: 'Projects group work.',
+          done: 'The project appears in the list.',
+        },
+      },
+      stepTitles: { login_email: 'Sign in' },
+    };
+    expect(() => validateLocale(framed, 'en-US.json')).not.toThrow();
+  });
+
+  it('rejects empty prerequisites and step titles', () => {
+    const bad = {
+      ...validLocale,
+      pages: { create_project: { ...validLocale.pages.create_project, prerequisites: [''] } },
+      stepTitles: { login_email: '' },
+    };
+    expect(() => validateLocale(bad, 'en-US.json')).toThrow(/prerequisites|stepTitles/);
+  });
+
   it('rejects a missing dir field', () => {
     const bad = { ...validLocale, dir: undefined };
     expect(() => validateLocale(bad, 'en-US.json')).toThrow('en-US.json');

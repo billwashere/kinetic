@@ -203,6 +203,41 @@ async function main(): Promise<void> {
           await island.getByRole('button', { name: 'Expand neighbourhood' }).click();
           await island.getByRole('heading', { name: 'Further out' }).waitFor();
           await expectAccessible(page, `docs page at ${siteUrl}`);
+
+          // Layout: procedure framing, Microsoft-style steps (assertions render as results), header search.
+          assert(await page.getByTestId('page-facts').isVisible(), 'facts card shown');
+          const stepsList = page.getByTestId('procedure-steps');
+          assert(
+            (await stepsList.locator(':scope > li').count()) === 3,
+            'three numbered action steps',
+          );
+          assert(
+            (await stepsList.textContent())?.includes('A success message confirms'),
+            'assertion shown as step result',
+          );
+          await page.keyboard.press('Control+k');
+          await page.keyboard.type('authentication');
+          await page
+            .getByRole('list', { name: 'Search results' })
+            .first()
+            .getByRole('link', { name: /Authentication/ })
+            .waitFor();
+          await page.keyboard.press('Escape');
+
+          // Dark mode: toggles, persists across navigation, and stays accessible.
+          await page.getByRole('button', { name: 'Dark mode' }).click();
+          assert(
+            await page.evaluate(() => document.documentElement.classList.contains('dark')),
+            'dark mode applied',
+          );
+          await page.reload();
+          assert(
+            await page.evaluate(() => document.documentElement.classList.contains('dark')),
+            'dark mode persisted',
+          );
+          await page.getByRole('region', { name: 'Explore the knowledge graph' }).waitFor();
+          await expectAccessible(page, `docs page (dark) at ${siteUrl}`);
+          await page.getByRole('button', { name: 'Dark mode' }).click();
           const sheetApplied = await page.evaluate(() => document.styleSheets.length > 0);
           assert(sheetApplied, `stylesheet loaded at ${siteUrl}`);
           // Follow in-page navigation: version/locale/prev/next links must stay inside the base.

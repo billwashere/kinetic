@@ -14,7 +14,8 @@
     "release:promote": "ts-node src/scripts/release-promote.ts",
     "release:smoke": "ts-node src/scripts/release-smoke.ts",
     "knowledge:query": "ts-node src/scripts/knowledge-query.ts",
-    "knowledge:compile": "ts-node src/scripts/knowledge-compile.ts"
+    "knowledge:compile": "ts-node src/scripts/knowledge-compile.ts",
+    "docs:lint": "ts-node src/scripts/docs-lint.ts"
   },
   "dependencies": {
     "@kinetic/renderer-compat": "workspace:*",

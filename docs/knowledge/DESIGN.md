@@ -151,7 +151,16 @@ Tested `@duckdb/duckdb-wasm@1.29.0` (DuckDB core v1.1.1, `eh` bundle) in Playwri
 | 6 Query              | DuckDB-WASM + Parquet behind threshold; AI context export (bounded neighbourhood JSON per node)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | ☐ §7 requirements; memory measured; offline run with extension self-hosted                                                   |
 | 7 Adoption           | more nodes from real specs; `supersedes` use for version diffs; release-to-release diff tool over manifests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | ☐                                                                                                                            |
 
-## 9. Authoring workflow
+## 9. Portal layout (Diátaxis + Microsoft procedures)
+
+The default layout follows a three-column documentation pattern: header (logo, Diátaxis tabs, search, theme toggle), grouped sidebar, and a page with breadcrumbs, facts card, overview, numbered steps, completion callout, and a right rail (on this page, related guides, optional support card, related concepts).
+
+- **Diátaxis mapping falls out of the architecture.** Test-derived pages are procedures, which makes them how-to guides (or tutorials when marked). Knowledge concepts are explanation and live in the explorer. There is no reference content yet, so there is no Reference tab; tabs appear only for quadrants that have content.
+- **Microsoft procedure style** is a data and rendering contract, not just copy guidance: assertions render as the result of the preceding step, notes attach to their step, framing fields drive the facts card and completion statement, and `docs:lint` flags violations.
+- **Search** in the header reuses the knowledge `search.ts` over the version/locale's pages plus authored knowledge nodes. The entries are embedded in each page, which is fine at this size; past a few hundred pages it should become a fetched static JSON file.
+- **No account/user menu**: a static, offline-capable release has no users, so the mock's profile icon was intentionally left out.
+
+## 10. Authoring workflow
 
 1. Add `content/knowledge/<dir>/<slug>.md` with frontmatter as in §3.
 2. Link to existing ids; attach `playwright-step` / `file` evidence.

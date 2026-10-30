@@ -18,11 +18,33 @@ interface Data {
   rels: Record<string, { label: string; inverseLabel: string; symmetric: boolean }>;
 }
 
+/** Interface text, passed from the page so the island follows the portal's locale. */
+export interface ExplorerLabels {
+  exploreGraph: string;
+  searchConcepts: string;
+  searchResults: string;
+  noResults: string;
+  relationshipTypes: string;
+  relationships: string;
+  noRelationships: string;
+  furtherOut: string;
+  nothingFurther: string;
+  expand: string;
+  collapse: string;
+  backToProcedure: string;
+  loadingGraph: string;
+  graphUnavailable: string;
+  boundedSubset: string;
+  verification: Record<string, string>;
+  relationLabels: Record<string, [string, string]>;
+}
+
 interface Props {
   rootId: string;
   locale: string;
   /** URL of the published `knowledge/` directory, relative to this page. */
   dataBase: string;
+  labels: ExplorerLabels;
 }
 
 const get = async (url: string) => {
@@ -31,7 +53,7 @@ const get = async (url: string) => {
   return r.json();
 };
 
-export default function KnowledgeExplorer({ rootId, locale, dataBase }: Props) {
+export default function KnowledgeExplorer({ rootId, locale, dataBase, labels: L }: Props) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [current, setCurrent] = useState(rootId);
@@ -90,10 +112,15 @@ export default function KnowledgeExplorer({ rootId, locale, dataBase }: Props) {
   }
   if (!data || !view)
     return (
-      <p className="text-xs text-slate-500" role="status">
-        Loading graph…
+      <p className="mt-4 text-xs text-slate-600 dark:text-slate-400" role="status">
+        {L.loadingGraph}
       </p>
     );
+  const relLabel = (type: string, forward: boolean) => {
+    const t = L.relationLabels[type];
+    const def = data.rels[type];
+    return t ? t[forward ? 0 : 1] : forward ? def.label : def.inverseLabel;
+  };
 
   const title = (id: string) => data.text[id]?.title ?? id;
   const hits = query.trim() ? search(data.index, query, { limit: 8 }) : [];
@@ -101,15 +128,22 @@ export default function KnowledgeExplorer({ rootId, locale, dataBase }: Props) {
   const further = view.hood.nodes.filter((n) => n.depth > 1);
 
   const NodeButton = ({ id }: { id: string }) => (
-    <button type="button" className="text-blue-700 underline" onClick={() => setCurrent(id)}>
+    <button
+      type="button"
+      className="k-text-primary underline k-focus rounded"
+      onClick={() => setCurrent(id)}
+    >
       {title(id)}
     </button>
   );
 
   return (
-    <section className="mt-6 rounded-lg border border-slate-200 p-4" aria-labelledby={`${uid}-h`}>
-      <h3 id={`${uid}-h`} className="text-base font-bold text-slate-800">
-        Explore the knowledge graph
+    <section
+      className="mt-6 rounded-xl border border-slate-200 p-5 dark:border-slate-800"
+      aria-labelledby={`${uid}-h`}
+    >
+      <h3 id={`${uid}-h`} className="text-base font-bold text-slate-900 dark:text-white">
+        {L.exploreGraph}
       </h3>
 
       <form
@@ -117,39 +151,43 @@ export default function KnowledgeExplorer({ rootId, locale, dataBase }: Props) {
         className="mt-2 flex gap-2 items-end"
         onSubmit={(e) => e.preventDefault()}
       >
-        <label className="text-sm text-slate-700">
-          Search concepts
+        <label className="text-sm text-slate-700 dark:text-slate-200">
+          {L.searchConcepts}
           <input
             type="search"
-            className="block border border-slate-300 rounded px-2 py-1"
+            className="mt-1 block rounded-lg border border-slate-300 bg-white px-2 py-1 dark:border-slate-700 dark:bg-slate-900 k-focus"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
         </label>
       </form>
       {query.trim() && (
-        <ul className="mt-2 text-sm list-none p-0" aria-label="Search results">
-          {hits.length === 0 && <li>No matches.</li>}
+        <ul className="mt-2 text-sm list-none p-0" aria-label={L.searchResults}>
+          {hits.length === 0 && <li>{L.noResults}</li>}
           {hits.map((h) => (
             <li key={h.doc.id}>
               <NodeButton id={h.doc.id} />{' '}
-              <span className="text-xs text-slate-600">({h.doc.kind})</span>
+              <span className="text-xs text-slate-600 dark:text-slate-400">({h.doc.kind})</span>
             </li>
           ))}
         </ul>
       )}
 
-      <h4 className="mt-4 text-sm font-semibold text-slate-800">
+      <h4 className="mt-4 text-sm font-semibold text-slate-900 dark:text-white">
         {title(current)}{' '}
-        <span className="text-xs font-normal text-slate-600">({data.kinds[current]})</span>
+        <span className="text-xs font-normal text-slate-600 dark:text-slate-400">
+          ({data.kinds[current]})
+        </span>
       </h4>
-      <p className="text-sm text-slate-600">{data.text[current]?.summary}</p>
+      <p className="text-sm text-slate-600 dark:text-slate-300">{data.text[current]?.summary}</p>
 
       {view.present.length > 0 && (
-        <fieldset className="mt-2 border border-slate-200 rounded p-2">
-          <legend className="text-xs text-slate-600 px-1">Relationship types</legend>
+        <fieldset className="mt-2 rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+          <legend className="px-1 text-xs text-slate-600 dark:text-slate-400">
+            {L.relationshipTypes}
+          </legend>
           {view.present.map((t) => (
-            <label key={t} className="text-sm mr-3">
+            <label key={t} className="me-3 text-sm">
               <input
                 type="checkbox"
                 checked={!off.has(t)}
@@ -165,16 +203,21 @@ export default function KnowledgeExplorer({ rootId, locale, dataBase }: Props) {
         </fieldset>
       )}
 
-      <ul className="mt-2 text-sm list-none p-0 space-y-1" aria-label="Relationships">
-        {incident.length === 0 && <li>No relationships shown.</li>}
+      <ul
+        className="mt-2 list-none space-y-1 p-0 text-sm text-slate-700 dark:text-slate-200"
+        aria-label={L.relationships}
+      >
+        {incident.length === 0 && <li>{L.noRelationships}</li>}
         {incident.map((e) => {
           const def = data.rels[e.type];
           const out = e.source === current;
           const other = out ? e.target : e.source;
           return (
             <li key={`${e.source}|${e.type}|${e.target}`}>
-              {out || def.symmetric ? def.label : def.inverseLabel} <NodeButton id={other} />{' '}
-              <span className="text-xs text-slate-600">[{e.verification}]</span>
+              {relLabel(e.type, out || def.symmetric)} <NodeButton id={other} />{' '}
+              <span className="text-xs text-slate-600 dark:text-slate-400">
+                [{L.verification[e.verification] ?? e.verification}]
+              </span>
             </li>
           );
         })}
@@ -182,9 +225,11 @@ export default function KnowledgeExplorer({ rootId, locale, dataBase }: Props) {
 
       {depth > 1 && (
         <>
-          <h4 className="mt-3 text-sm font-semibold text-slate-800">Further out</h4>
-          <ul className="text-sm list-none p-0" aria-label="Further out">
-            {further.length === 0 && <li>Nothing further.</li>}
+          <h4 className="mt-3 text-sm font-semibold text-slate-900 dark:text-white">
+            {L.furtherOut}
+          </h4>
+          <ul className="text-sm list-none p-0" aria-label={L.furtherOut}>
+            {further.length === 0 && <li>{L.nothingFurther}</li>}
             {further.map((n) => (
               <li key={n.id}>
                 <NodeButton id={n.id} />
@@ -192,9 +237,7 @@ export default function KnowledgeExplorer({ rootId, locale, dataBase }: Props) {
             ))}
           </ul>
           {view.hood.truncated && (
-            <p className="text-xs text-slate-600">
-              Showing a bounded subset; filter by relationship type to narrow.
-            </p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{L.boundedSubset}</p>
           )}
         </>
       )}
@@ -202,18 +245,18 @@ export default function KnowledgeExplorer({ rootId, locale, dataBase }: Props) {
       <div className="mt-3 flex gap-2">
         <button
           type="button"
-          className="border border-slate-300 rounded px-2 py-1 text-sm"
+          className="rounded-lg border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 k-focus"
           onClick={() => setDepth(depth > 1 ? 1 : 2)}
         >
-          {depth > 1 ? 'Collapse neighbourhood' : 'Expand neighbourhood'}
+          {depth > 1 ? L.collapse : L.expand}
         </button>
         {current !== rootId && (
           <button
             type="button"
-            className="border border-slate-300 rounded px-2 py-1 text-sm"
+            className="rounded-lg border border-slate-300 px-3 py-1 text-sm hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800 k-focus"
             onClick={() => setCurrent(rootId)}
           >
-            Back to this procedure
+            {L.backToProcedure}
           </button>
         )}
       </div>

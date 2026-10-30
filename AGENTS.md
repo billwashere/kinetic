@@ -140,6 +140,7 @@ pnpm test:docs                            # Playwright E2E → skeleton + webm
 pnpm generate:audio                       # TTS → mp3 + audio manifests
 pnpm assemble                             # render-compat render + stitch + mix
 pnpm diff:check --from v1.0 --to v2.0
+pnpm docs:lint                            # procedure style warnings (Microsoft Writing Style Guide)
 ```
 
 ---
@@ -461,6 +462,19 @@ pnpm knowledge:query <release-dir> node <id> --depth 2
 - The portal's "Related knowledge" section (`RelatedKnowledge.astro`, `src/lib/knowledge.ts`) reads only the compiled files, never engine code. It is shown only for `compiled.json`'s `docsVersion`. Set `KINETIC_EXPLORER_PATH=` (empty) for a portal deployed without the explorer.
 - `KnowledgeExplorer.tsx` (island) fetches `${ROOT}../knowledge/` at runtime (`KINETIC_KNOWLEDGE_PATH=` empty disables it). The smoke test runs axe-core; keep new portal UI at WCAG AA contrast (use `slate-600` or darker for small text).
 - `file://` is unsupported for releases; use the bundled `serve.mjs`.
+
+---
+
+## Portal Layout, Diátaxis and Procedure Style
+
+- **Diátaxis.** Pages extracted from Playwright tests are procedures, so they are *How-to guides* by default; `store.page(id, { diataxis: 'tutorial' })` marks a learning walkthrough. Knowledge concepts/features are *Explanation* (the explorer). Header tabs are those quadrants; the sidebar only lists the current quadrant, grouped by `breadcrumbs[0]` › `breadcrumbs[1]`.
+- **Procedure framing** lives in each locale's `pages.<id>`: optional `audience`, `duration`, `prerequisites[]`, `outcome`, `overview`, `done`. Optional `stepTitles.<textKey>` gives a step a short heading (narration still reads `strings`). Missing fields simply hide their UI.
+- **Microsoft Writing Style Guide** (procedures): one action per numbered step, imperative verb first, "select" not "click", "go to" not "navigate to", no "please" or sequence words ("First,"), state results as facts, ≤ 7 steps, end with a completion statement. An assertion (`docAssert`) renders as the *result* of the step before it, not as a numbered step. `pnpm docs:lint` checks these heuristically for English locales (warnings only; `--strict` fails).
+- **Chrome strings** (labels, not content) are in `apps/docs-portal/src/config.ts` → `uiStrings(locale)`, including Arabic relationship labels. Arabic chrome text was written for this portal and needs native review.
+- **Icons** are `lucide-react` components rendered to static SVG at build time (no client JS). Use `className`, pass `aria-hidden="true"` for decorative icons, and add `rtl:rotate-180` to directional arrows/chevrons.
+- **Dark mode** is Tailwind `darkMode: 'class'`, set before first paint from `localStorage['kinetic-theme']` or the OS setting. Every new surface needs `dark:` variants; use `k-text-primary` (lightened in dark) for brand-coloured text. The smoke test runs axe in light, dark and Arabic.
+- **Optional env:** `KINETIC_LOGO` (header image), `KINETIC_SUPPORT_URL` (shows the "Need help?" card).
+- The video player only renders when the MP4 exists in the public dir at build time, so doc-only builds show no broken player.
 
 ---
 
