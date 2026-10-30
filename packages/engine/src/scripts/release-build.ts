@@ -18,6 +18,7 @@ dotenv.config();
  *
  * Flags: --site <dir>  include a built Astro portal under site/
  *        --out <dir>   default dist/release
+ *        --declare-missing-media  record media the site links to but was not rendered, instead of failing
  *        --no-media    also emit a smaller ZIP without optional media (omissions are declared in offline.json)
  */
 async function main(): Promise<void> {
@@ -47,6 +48,7 @@ async function main(): Promise<void> {
     authoredIds: graph.nodes.filter((n) => n.origin === 'authored').map((n) => n.id),
     textSources: text,
     siteDir,
+    declareMissingMedia: args.includes('--declare-missing-media'),
     outDir,
   });
   console.log(

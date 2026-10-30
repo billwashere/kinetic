@@ -455,7 +455,8 @@ pnpm knowledge:query <release-dir> node <id> --depth 2
 - Procedures are **derived** from `extracted-skeleton.json` (`procedure:<pageId>`); reference them as targets, never re-author them. `playwright-step` evidence is checked against the skeleton.
 - Only default-locale (`en-US`) text lives in the node file; other locales go under `knowledge` in `content/locales/<locale>.json` (ids must exist).
 - Output must stay deterministic: no timestamps, no absolute paths, sorted keys/arrays. `release.test.ts` asserts identical ZIP bytes.
-- Generated URLs in release content must be relative. `verify.ts` rejects root-absolute URLs, so `--site` currently fails until the Astro portal is made relocatable (design doc §6.1).
+- URLs in the portal and release content must be document-relative (portal pages use `ROOT = '../../../'`). `verify.ts` rejects root-absolute URLs; Astro's `/_astro/` URLs are rewritten once in `relativizeAstroAssets`. Never add a `/…` link to the portal.
+- `release:build --site ../../apps/docs-portal/dist [--declare-missing-media]` includes the built Astro portal; undeclared missing media fails the build.
 - `file://` is unsupported for releases; use the bundled `serve.mjs`.
 
 ---

@@ -6,7 +6,11 @@ import DocLayout from '../../../layouts/DocLayout.astro';
 import KineticPlayer from '../../../components/KineticPlayer.tsx';
 import PageInject from '../../../plugins/PageInject.astro';
 
+// Pages are emitted as <version>/<locale>/<pageId>/index.html, so the site root is always three
+// levels up. Relative URLs (instead of '/…') keep the build relocatable: CDN path, intranet, or ZIP.
 export async function getStaticPaths() {
+  // getStaticPaths is hoisted by Astro and cannot see module-scope constants, so this is declared here.
+  const ROOT = '../../../';
   const generatedDir =
     process.env.KINETIC_GENERATED_DIR ?? path.resolve('../../packages/engine/generated');
   if (!fs.existsSync(generatedDir)) return [];
@@ -52,7 +56,7 @@ export async function getStaticPaths() {
       const menuItems = skeleton.map((p: any) => ({
         id: p.pageId,
         title: localeData.pages[p.pageId]?.title ?? p.pageId,
-        url: `/${version}/${locale}/${p.pageId}`,
+        url: `${ROOT}${version}/${locale}/${p.pageId}/`,
       }));
 
       for (let i = 0; i < skeleton.length; i++) {
@@ -66,16 +70,16 @@ export async function getStaticPaths() {
           const targetSkeleton = skeletons[v];
           const exists = targetSkeleton.some((p: any) => p.pageId === page.pageId);
           versionUrls[v] = exists
-            ? `/${v}/${locale}/${page.pageId}`
-            : `/${v}/${locale}/${targetSkeleton[0]?.pageId ?? ''}`;
+            ? `${ROOT}${v}/${locale}/${page.pageId}/`
+            : `${ROOT}${v}/${locale}/${targetSkeleton[0]?.pageId ?? ''}/`;
         }
 
         const videoUrl = page.videoless
           ? null
-          : `/video-cache/${version}/${locale}_${page.pageId}.mp4`;
+          : `${ROOT}video-cache/${version}/${locale}_${page.pageId}.mp4`;
         const vttUrl = page.videoless
           ? null
-          : `/video-cache/${version}/${locale}_${page.pageId}.vtt`;
+          : `${ROOT}video-cache/${version}/${locale}_${page.pageId}.vtt`;
 
         // Build step list, preserving type for callout vs numbered rendering.
         // Track step number separately so notes don't increment the count.
@@ -116,13 +120,13 @@ export async function getStaticPaths() {
             menuItems,
             prevPage: prevSkeleton
               ? {
-                  url: `/${version}/${locale}/${prevSkeleton.pageId}`,
+                  url: `${ROOT}${version}/${locale}/${prevSkeleton.pageId}/`,
                   title: localeData.pages[prevSkeleton.pageId]?.title ?? prevSkeleton.pageId,
                 }
               : null,
             nextPage: nextSkeleton
               ? {
-                  url: `/${version}/${locale}/${nextSkeleton.pageId}`,
+                  url: `${ROOT}${version}/${locale}/${nextSkeleton.pageId}/`,
                   title: localeData.pages[nextSkeleton.pageId]?.title ?? nextSkeleton.pageId,
                 }
               : null,
@@ -135,6 +139,7 @@ export async function getStaticPaths() {
   return paths;
 }
 
+const ROOT = '../../../';
 const { version, locale } = Astro.params;
 const { pageData, allVersions, versionUrls, allLocales, menuItems, prevPage, nextPage } =
   Astro.props;
@@ -152,6 +157,7 @@ const { pageData, allVersions, versionUrls, allLocales, menuItems, prevPage, nex
   currentLocale={locale}
   menuItems={menuItems}
   currentPageId={pageData.id}
+  root={ROOT}
   breadcrumbs={pageData.breadcrumbs}
   prevPage={prevPage}
   nextPage={nextPage}

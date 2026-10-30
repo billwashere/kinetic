@@ -6,6 +6,7 @@ import { SITE } from '../config';
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Relative to the site root: correct when the host serves 404.html from the root. -->
     <title>Page not found | {SITE.name}</title>
   </head>
   <body class="min-h-screen bg-slate-50 flex items-center justify-center font-sans text-slate-900">
@@ -16,7 +17,7 @@ import { SITE } from '../config';
         This page may have been moved or doesn't exist in this version.
       </p>
       <a
-        href="/"
+        href="./"
         class="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition-colors"
       >
         ← Back to docs

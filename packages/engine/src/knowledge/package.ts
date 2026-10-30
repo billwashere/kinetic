@@ -92,9 +92,15 @@ export async function packageOffline(
 ): Promise<{ zipPath: string; zipSha256: string; folder: string; info: OfflineInfo }> {
   const manifest: Manifest = await fs.readJson(path.join(opts.releaseDir, 'manifest.json'));
   const kept = manifest.files.filter((f) => opts.includeMedia || f.role !== 'media');
-  const omitted = manifest.files
-    .filter((f) => !kept.includes(f))
-    .map((f) => ({ path: f.path, reason: 'optional media excluded from this package' }));
+  const omitted = [
+    ...manifest.files
+      .filter((f) => !kept.includes(f))
+      .map((f) => ({ path: f.path, reason: 'optional media excluded from this package' })),
+    ...(manifest.missingMedia ?? []).map((p) => ({
+      path: p,
+      reason: 'media was not rendered for this release',
+    })),
+  ];
 
   const folder = `kinetic-docs-${manifest.releaseId}${opts.includeMedia ? '' : '-nomedia'}`;
   const info: OfflineInfo = {

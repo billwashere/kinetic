@@ -1,6 +1,6 @@
 # Kinetic Docs — Declarative Knowledge Graph: design and first slice
 
-Status: Phase 1–3 implemented, Phase 5 partly (release/CDN/ZIP pipeline, no portal yet). Phases 4, 6, 7 are planned below.
+Status: Phases 1–3 and 5 implemented, including the real Astro portal inside the release. Phases 4 (portal knowledge UI), 6, 7 are planned below.
 
 ## 1. Assessment of the existing system
 
@@ -17,7 +17,7 @@ Status: Phase 1–3 implemented, Phase 5 partly (release/CDN/ZIP pipeline, no po
 Two findings drive the design:
 
 1. The skeleton already is a machine-readable index of procedures and their steps, so procedures do not need to be re-authored. They are **derived** nodes (`procedure:<pageId>`); step ids become **evidence** that is checked against the skeleton.
-2. The portal cannot currently be relocated. The release verifier proves this (112 `root-absolute-url` errors on the current Astro output) and refuses to publish it. See §6.
+2. The portal could not originally be relocated; the verifier measured 112 `root-absolute-url` errors on its output and refused to publish it. That was fixed (§6.1).
 
 ## 2. Mapping onto the repository (no second pipeline)
 
@@ -112,8 +112,8 @@ dist/release/offline/kinetic-docs-<id>.zip  # same files + offline.json, serve.m
 
 ## 6. Known gaps and the main open decision
 
-1. **Portal is not relocatable (blocking for `--site`).** Every internal URL is root-absolute, and Astro's `base` is a build-time setting. Two options: (a) build the site once with relative URLs (needs per-depth relative link helpers in the layout/route; one artefact serves CDN, intranet and ZIP); (b) build with a placeholder base and rewrite it at publish time (smaller change but alters file hashes, so the rewrite must happen _before_ the manifest is computed, once per delivery mode — which breaks "same release identity"). **Recommendation: (a).** Until then `release:build --site` fails verification, by design.
-2. `PageInject.astro` posts feedback to `/api/feedback` — a runtime server dependency that conflicts with §2.2 of the brief. It should be feature-flagged off in static releases; `offline.json.onlineOnly` is the place to declare it.
+1. **Portal relocation (done, Phase 5b).** Option (a) was implemented: the route, layout, 404 and index emit document-relative URLs (`../../../v1.0/en-US/x/`), `trailingSlash: 'always'` keeps that valid in dev, and the root page uses a relative meta-refresh. Astro's own `/_astro/…` bundle URLs cannot be made relative in config, so `relativizeAstroAssets` rewrites them once while the release is staged, _before_ hashing — one transform, so CDN, self-hosted and ZIP carry identical bytes. `release:build --site` now verifies clean and the smoke test loads the real portal under `/docs/offline/` and under `/`. Residual: `404.html` links are relative to the site root, which is correct only where the host serves it from the root.
+2. **Media in CI.** Videos are not rendered in a doc-edit build. `--declare-missing-media` records exactly the unrendered files in `manifest.missingMedia` (part of the release identity and listed in `offline.json`); any other broken reference still fails. A release built that way has no video and says so. `/api/feedback` appears only in a _commented example_ in `PageInject.astro` (annotated as online-only); no live code needs a server.
 3. Locale subsets are not implemented: every ZIP contains all locales the release has. Bodies are default-locale only.
 4. The explorer is a dependency-free _reference consumer_ (outline, not a drawn graph) that proves the artefacts and a11y patterns. It is not the portal integration.
 5. The Arabic strings in `ar-AE.json` were written by the assistant and need native review.
@@ -140,16 +140,16 @@ Tested `@duckdb/duckdb-wasm@1.29.0` (DuckDB core v1.1.1, `eh` bundle) in Playwri
 
 ## 8. Incremental plan and acceptance tests
 
-| Phase                | Scope                                                                                                                                               | Acceptance (✔ = covered today)                                                                                                                   |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1 Assessment         | this document, DuckDB spike                                                                                                                         | ✔                                                                                                                                                |
-| 2 Model              | registry, schema, loader, validator, 4 sample nodes + 1 derived page                                                                                | ✔ `validate.test.ts` (negative cases per error code), `knowledge:validate` on repo                                                               |
-| 3 Artefacts          | graph/content/search/DOT, manifest, determinism                                                                                                     | ✔ `release.test.ts` (same id + same ZIP bytes; id changes with content); `knowledge:query` CLI reads artefacts with no Astro                     |
-| 5 Release (partial)  | CDN tree, pointer, promote/rollback, ZIP, verifier, launcher, smoke                                                                                 | ✔ tamper/missing/unlisted/dangling/root-absolute/external/zip-slip tests; rollback test; Chromium smoke; CI job. ☐ real portal in release (§6.1) |
-| 4 Portal             | knowledge section on procedure pages (related concepts, evidence), explorer island reusing `search.ts`/`query.ts`, knowledge nodes in portal search | ☐ page shows typed links from `documented_by`; keyboard/axe pass; no new routing system                                                          |
-| 5b Portal relocation | §6.1(a), feature-flag `/api/feedback`, add `--site` to CI                                                                                           | ☐ release with `site/` verifies clean; smoke covers a docs page under `/docs/offline/` and a second non-root base                                |
-| 6 Query              | DuckDB-WASM + Parquet behind threshold; AI context export (bounded neighbourhood JSON per node)                                                     | ☐ §7 requirements; memory measured; offline run with extension self-hosted                                                                       |
-| 7 Adoption           | more nodes from real specs; `supersedes` use for version diffs; release-to-release diff tool over manifests                                         | ☐                                                                                                                                                |
+| Phase                | Scope                                                                                                                                               | Acceptance (✔ = covered today)                                                                                               |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1 Assessment         | this document, DuckDB spike                                                                                                                         | ✔                                                                                                                            |
+| 2 Model              | registry, schema, loader, validator, 4 sample nodes + 1 derived page                                                                                | ✔ `validate.test.ts` (negative cases per error code), `knowledge:validate` on repo                                           |
+| 3 Artefacts          | graph/content/search/DOT, manifest, determinism                                                                                                     | ✔ `release.test.ts` (same id + same ZIP bytes; id changes with content); `knowledge:query` CLI reads artefacts with no Astro |
+| 5 Release (partial)  | CDN tree, pointer, promote/rollback, ZIP, verifier, launcher, smoke                                                                                 | ✔ tamper/missing/unlisted/dangling/root-absolute/external/zip-slip tests; rollback test; Chromium smoke; CI job.             |
+| 4 Portal             | knowledge section on procedure pages (related concepts, evidence), explorer island reusing `search.ts`/`query.ts`, knowledge nodes in portal search | ☐ page shows typed links from `documented_by`; keyboard/axe pass; no new routing system                                      |
+| 5b Portal relocation | §6.1(a), feature-flag `/api/feedback`, add `--site` to CI                                                                                           | ☐ release with `site/` verifies clean; smoke covers a docs page under `/docs/offline/` and a second non-root base            |
+| 6 Query              | DuckDB-WASM + Parquet behind threshold; AI context export (bounded neighbourhood JSON per node)                                                     | ☐ §7 requirements; memory measured; offline run with extension self-hosted                                                   |
+| 7 Adoption           | more nodes from real specs; `supersedes` use for version diffs; release-to-release diff tool over manifests                                         | ☐                                                                                                                            |
 
 ## 9. Authoring workflow
 

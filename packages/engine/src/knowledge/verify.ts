@@ -29,10 +29,14 @@ function loadReferences(file: string, text: string): string[] {
       refs.push(m[1]);
     for (const m of text.matchAll(/<link\b[^>]*?\bhref\s*=\s*["']([^"']+)["']/gi)) refs.push(m[1]);
   }
-  if (file.endsWith('.css') || file.endsWith('.html')) {
-    for (const m of text.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)) refs.push(m[1]);
-    for (const m of text.matchAll(/@import\s+["']([^"']+)["']/gi)) refs.push(m[1]);
-  }
+  // url()/@import only mean something in CSS; in HTML that is <style> blocks, not inline JS like `new URL(x)`.
+  const css = file.endsWith('.css')
+    ? text
+    : file.endsWith('.html')
+      ? [...text.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n')
+      : '';
+  for (const m of css.matchAll(/url\(\s*["']?([^"')]+)["']?\s*\)/gi)) refs.push(m[1]);
+  for (const m of css.matchAll(/@import\s+["']([^"']+)["']/gi)) refs.push(m[1]);
   if (/\.m?js$/.test(file) || file.endsWith('.html')) {
     for (const m of text.matchAll(
       /(?:\bfrom\s*|\bimport\s*\(\s*|\bfetch\s*\(\s*|\bimportScripts\s*\(\s*|new URL\s*\(\s*)["'`](https?:\/\/[^"'`]+)["'`]/g,
@@ -67,14 +71,15 @@ export async function verifyReleaseDir(dir: string, mode: VerifyMode): Promise<D
     return [err('manifest-invalid', `manifest.json is not valid JSON: ${(e as Error).message}`)];
   }
 
-  let omitted = new Set<string>();
+  // Media the build declared it did not render is tolerated as a reference target, nothing else.
+  let omitted = new Set<string>(manifest.missingMedia ?? []);
   let info: OfflineInfo | undefined;
   if (mode === 'offline') {
     if (!(await fs.pathExists(path.join(dir, 'offline.json'))))
       out.push(err('offline-info-missing', 'offline.json not found'));
     else {
       info = await fs.readJson(path.join(dir, 'offline.json'));
-      omitted = new Set(info!.omitted.map((o) => o.path));
+      omitted = new Set([...omitted, ...info!.omitted.map((o) => o.path)]);
       if (info!.releaseId !== manifest.releaseId || info!.contentHash !== manifest.contentHash) {
         out.push(
           err(
@@ -87,7 +92,7 @@ export async function verifyReleaseDir(dir: string, mode: VerifyMode): Promise<D
   }
 
   // Identity: releaseId is derived from content, so any edit after build is caught here.
-  const expectedHash = computeContentHash(manifest.files);
+  const expectedHash = computeContentHash(manifest.files, manifest.missingMedia ?? []);
   if (expectedHash !== manifest.contentHash)
     out.push(err('content-hash-mismatch', 'manifest.contentHash does not match its file list'));
   if (!manifest.releaseId.endsWith(manifest.contentHash.slice(0, 12)))

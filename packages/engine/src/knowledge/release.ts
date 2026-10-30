@@ -44,6 +44,11 @@ export interface Manifest {
   };
   /** What a consumer can rely on in this release (the offline package may narrow it, see offline.json). */
   capabilities: string[];
+  /**
+   * Media the site references but this build did not render (e.g. CI without ffmpeg). Declared, not hidden:
+   * the verifier tolerates exactly these paths and the offline README lists them.
+   */
+  missingMedia: string[];
   files: ManifestFile[];
 }
 
@@ -58,12 +63,18 @@ export function roleOf(p: string): FileRole {
   return 'meta';
 }
 
-export function computeContentHash(files: { path: string; sha256: string }[]): string {
+export function computeContentHash(
+  files: { path: string; sha256: string }[],
+  missingMedia: string[] = [],
+): string {
+  // Declared-missing media is part of the release's identity: two builds that differ only there are different releases.
   return sha256(
-    [...files]
-      .sort((a, b) => (a.path < b.path ? -1 : 1))
-      .map((f) => `${f.path}\t${f.sha256}\n`)
-      .join(''),
+    [
+      ...[...files]
+        .sort((a, b) => (a.path < b.path ? -1 : 1))
+        .map((f) => `${f.path}\t${f.sha256}\n`),
+      ...[...missingMedia].sort().map((p) => `missing\t${p}\n`),
+    ].join(''),
   );
 }
 
@@ -73,6 +84,20 @@ function transpileBrowserModule(srcPath: string): string {
   return ts.transpileModule(src, {
     compilerOptions: { module: ts.ModuleKind.ES2022, target: ts.ScriptTarget.ES2022 },
   }).outputText;
+}
+
+/**
+ * Astro emits its own bundles as root-absolute `/_astro/…` regardless of how our pages link.
+ * Rewriting them to document-relative paths happens ONCE here, before hashing, so the CDN tree,
+ * self-hosted copy and offline ZIP all carry the same bytes and the same release identity.
+ */
+export function relativizeAstroAssets(htmlPath: string, html: string): string {
+  const depth = htmlPath.split('/').length - 1;
+  const prefix = depth === 0 ? './' : '../'.repeat(depth);
+  return html.replace(
+    /(\b(?:href|src|component-url|renderer-url|before-hydration-url)=")\/_astro\//g,
+    `$1${prefix}_astro/`,
+  );
 }
 
 export interface BuildReleaseInput {
@@ -86,6 +111,8 @@ export interface BuildReleaseInput {
   textSources: Record<string, Record<string, { titleFrom: string }>>;
   /** Optional Astro (or other static) build output, copied under `site/`. */
   siteDir?: string;
+  /** Record unrendered media referenced by the site instead of failing verification. */
+  declareMissingMedia?: boolean;
   outDir: string;
 }
 
@@ -122,8 +149,27 @@ export async function buildRelease(
   staged.set('index.html', fs.readFileSync(path.join(here, 'explorer', 'landing.html')));
 
   if (input.siteDir) {
-    for (const rel of walk(input.siteDir))
-      staged.set(`site/${rel}`, fs.readFileSync(path.join(input.siteDir, rel)));
+    for (const rel of walk(input.siteDir)) {
+      const buf = fs.readFileSync(path.join(input.siteDir, rel));
+      staged.set(
+        `site/${rel}`,
+        rel.endsWith('.html') ? relativizeAstroAssets(rel, buf.toString('utf8')) : buf,
+      );
+    }
+  }
+
+  const missingMedia: string[] = [];
+  if (input.declareMissingMedia) {
+    for (const [p, c] of staged) {
+      if (!p.startsWith('site/') || !p.endsWith('.html')) continue;
+      for (const m of c
+        .toString()
+        .matchAll(/(?:src|href)="((?:\.\.\/)*)((?:video-cache|audio-objects)\/[^"#?]+)"/g)) {
+        const target = path.posix.normalize(path.posix.join(path.posix.dirname(p), m[1] + m[2]));
+        if (!staged.has(target) && !missingMedia.includes(target)) missingMedia.push(target);
+      }
+    }
+    missingMedia.sort();
   }
 
   const files: ManifestFile[] = [...staged.entries()]
@@ -133,7 +179,7 @@ export async function buildRelease(
     })
     .sort((a, b) => (a.path < b.path ? -1 : 1));
 
-  const contentHash = computeContentHash(files);
+  const contentHash = computeContentHash(files, missingMedia);
   const releaseId = `${input.docsVersion}-${contentHash.slice(0, 12)}`;
 
   const authored = new Set(input.authoredIds);
@@ -174,6 +220,7 @@ export async function buildRelease(
       edgesByVerification: byVer,
     },
     capabilities,
+    missingMedia,
     files,
   };
 

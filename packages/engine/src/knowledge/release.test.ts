@@ -3,7 +3,7 @@ import fs from 'fs-extra';
 import os from 'os';
 import path from 'path';
 import { buildKnowledge, defaultPaths } from './source';
-import { buildRelease, type Manifest } from './release';
+import { buildRelease, relativizeAstroAssets, type Manifest } from './release';
 import { packageOffline } from './package';
 import { promote } from './cdn';
 import { verifyReleaseDir, verifyZip } from './verify';
@@ -192,5 +192,57 @@ describe('promotion and rollback', () => {
     );
     await expect(promote(cdn, other.manifest.releaseId)).rejects.toThrow(/refusing to promote/);
     expect((await fs.readJson(path.join(cdn, 'current.json'))).releaseId).toBe(manifest.releaseId);
+  });
+});
+
+describe('relativizeAstroAssets', () => {
+  it('rewrites only /_astro/ attribute URLs, relative to page depth', () => {
+    const html =
+      '<link href="/_astro/a.css"><astro-island component-url="/_astro/b.js"></astro-island><a href="/other/">x</a>';
+    expect(relativizeAstroAssets('v1.0/en-US/p/index.html', html)).toBe(
+      '<link href="../../../_astro/a.css"><astro-island component-url="../../../_astro/b.js"></astro-island><a href="/other/">x</a>',
+    );
+    expect(relativizeAstroAssets('index.html', '<script src="/_astro/c.js">')).toBe(
+      '<script src="./_astro/c.js">',
+    );
+  });
+});
+
+describe('declared missing media', () => {
+  it('is recorded in the manifest and identity, tolerated by the verifier, and nothing else is', async () => {
+    const site = path.join(tmp, 'site2');
+    await fs.outputFile(
+      path.join(site, 'p/index.html'),
+      '<video src="../video-cache/v1.0/a.mp4"></video><img src="../nope.png">',
+    );
+    const paths = defaultPaths(path.resolve(__dirname, '../..'));
+    const b = await buildKnowledge(paths);
+    const make = (declare: boolean, out: string) =>
+      buildRelease({
+        docsVersion: 'v1.0',
+        defaultLocale: 'en-US',
+        graph: b.validation.graph,
+        knowledge: b.artifacts,
+        locales: [
+          { code: 'en-US', dir: 'ltr' },
+          { code: 'ar-AE', dir: 'rtl' },
+        ],
+        authoredIds: b.validation.graph.nodes
+          .filter((n) => n.origin === 'authored')
+          .map((n) => n.id),
+        textSources: b.validation.text,
+        siteDir: site,
+        declareMissingMedia: declare,
+        outDir: path.join(tmp, out),
+      });
+    const declared = await make(true, 'd1');
+    const undeclared = await make(false, 'd2');
+    expect(declared.manifest.missingMedia).toEqual(['site/video-cache/v1.0/a.mp4']);
+    expect(declared.manifest.releaseId).not.toBe(undeclared.manifest.releaseId);
+    const bad = (await verifyReleaseDir(declared.dir, 'cdn')).map((d) => `${d.code}:${d.message}`);
+    expect(bad.some((m) => m.includes('a.mp4'))).toBe(false);
+    expect(bad.some((m) => m.includes('nope.png'))).toBe(true);
+    const zip = await packageOffline({ releaseDir: declared.dir, outDir: tmp, includeMedia: true });
+    expect(zip.info.omitted.map((o) => o.path)).toContain('site/video-cache/v1.0/a.mp4');
   });
 });

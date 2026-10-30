@@ -43,6 +43,8 @@ interface Props {
   currentLocale: string;
   menuItems: MenuItem[];
   currentPageId: string;
+  /** Relative path from this page to the site root, e.g. '../../../'. */
+  root: string;
   breadcrumbs: string[];
   prevPage: AdjacentPage | null;
   nextPage: AdjacentPage | null;
@@ -60,12 +62,15 @@ const {
   currentLocale,
   menuItems,
   currentPageId,
+  root,
   breadcrumbs,
   prevPage,
   nextPage,
 } = Astro.props;
 
 const metaDescription = description ?? SITE.description;
+// Root-relative site paths become document-relative; absolute URLs pass through.
+const favicon = SITE.favicon.startsWith('/') && !SITE.favicon.startsWith('//') ? root + SITE.favicon.slice(1) : SITE.favicon;
 ---
 
 <!doctype html>
@@ -77,7 +82,7 @@ const metaDescription = description ?? SITE.description;
     <meta property="og:title" content={`${title} | ${SITE.name}`} />
     <meta property="og:description" content={metaDescription} />
     <meta property="og:type" content="article" />
-    <link rel="icon" href={SITE.favicon} sizes="any" />
+    <link rel="icon" href={favicon} sizes="any" />
     <title>{title} | {SITE.name}</title>
 
     <!-- Theme: CSS custom properties derived from THEME in config.ts.
@@ -211,7 +216,7 @@ const metaDescription = description ?? SITE.description;
                   {allLocales.map((loc) => {
                     const label = LOCALE_LABELS[loc] ?? loc;
                     const name = LOCALE_NAMES[loc] ?? loc;
-                    const localeUrl = Astro.url.pathname.replace(`/${currentLocale}/`, `/${loc}/`);
+                    const localeUrl = `${root}${currentVersion}/${loc}/${currentPageId}/`;
                     return (
                       <a
                         href={localeUrl}

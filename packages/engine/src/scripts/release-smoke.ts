@@ -27,6 +27,19 @@ function assert(cond: unknown, msg: string): asserts cond {
   if (!cond) throw new Error(`smoke assertion failed: ${msg}`);
 }
 
+function startLauncher(dir: string, base: string) {
+  const proc = spawn(process.execPath, ['serve.mjs', '--port', '0', '--base', base], { cwd: dir });
+  const url = new Promise<string>((resolve, reject) => {
+    proc.stdout.on('data', (b: Buffer) => {
+      const m = /(http:\/\/\S+)/.exec(b.toString());
+      if (m) resolve(m[1]);
+    });
+    proc.on('error', reject);
+    setTimeout(() => reject(new Error('launcher did not start')), 10_000);
+  });
+  return { proc, url };
+}
+
 async function main(): Promise<void> {
   const zip = process.argv[2] ? path.resolve(process.argv[2]) : await newestZip();
   const { diagnostics, extractedDir } = await verifyZip(zip);
@@ -118,6 +131,50 @@ async function main(): Promise<void> {
       .catch(() => assert(false, 'document direction follows locale'));
     await page.goto(`${url}explorer/#concept%3Aworkspace`);
     await page.getByRole('heading', { level: 2, name: 'مساحة العمل' }).waitFor();
+
+    // The documentation site, when the release has one: same ZIP, served under this base AND the domain root.
+    const manifest = await fs.readJson(path.join(extractedDir, 'manifest.json'));
+    const info = await fs.readJson(path.join(extractedDir, 'offline.json'));
+    if (manifest.capabilities.includes('docs-site')) {
+      const declaredMissing = new Set<string>(info.omitted.map((o: { path: string }) => o.path));
+      const rootServer = startLauncher(extractedDir, '/');
+      try {
+        const rootUrl = await rootServer.url;
+        const rootOrigin = new URL(rootUrl).origin;
+        await context.route(`${rootOrigin}/**`, (route) => route.continue());
+        for (const siteUrl of [`${url}site/`, `${rootUrl}site/`]) {
+          const before = failures.length;
+          await page.goto(`${siteUrl}index.html`);
+          await page.waitForURL(/\/create_project\/$/); // meta-refresh redirect from the site root
+          await page.goto(`${siteUrl}v1.0/en-US/create_project/`);
+          await page.getByRole('heading', { level: 1 }).first().waitFor();
+          const sheetApplied = await page.evaluate(() => document.styleSheets.length > 0);
+          assert(sheetApplied, `stylesheet loaded at ${siteUrl}`);
+          // Follow in-page navigation: version/locale/prev/next links must stay inside the base.
+          const dirBefore = await page.getAttribute('html', 'dir');
+          await page.locator('a[href*="ar-AE"]').first().click();
+          await page.waitForURL(/ar-AE/);
+          assert(
+            (await page.getAttribute('html', 'dir')) === 'rtl' && dirBefore === 'ltr',
+            'locale link switches direction',
+          );
+          assert(
+            page.url().startsWith(siteUrl),
+            `navigation stayed under ${siteUrl}, got ${page.url()}`,
+          );
+          const unexpected = failures
+            .slice(before)
+            .filter((f) => ![...declaredMissing].some((m) => f.includes(m.replace(/^site\//, ''))));
+          assert(
+            unexpected.length === 0,
+            `unexpected failures at ${siteUrl}: ${unexpected.join('; ')}`,
+          );
+          failures.length = before;
+        }
+      } finally {
+        rootServer.proc.kill();
+      }
+    }
 
     assert(external.length === 0, `requests left the local server: ${external.join(', ')}`);
     assert(failures.length === 0, `failed requests/errors: ${failures.join('; ')}`);
