@@ -7,15 +7,23 @@
     "generate:audio": "ts-node src/scripts/pre-render-audio.ts",
     "diff:check": "ts-node src/scripts/diff-check.ts",
     "assemble": "ts-node src/scripts/assemble.ts",
-    "generate:corpus": "ts-node src/scripts/generate-corpus.ts"
+    "generate:corpus": "ts-node src/scripts/generate-corpus.ts",
+    "knowledge:validate": "ts-node src/scripts/knowledge-validate.ts",
+    "release:build": "ts-node src/scripts/release-build.ts",
+    "release:verify": "ts-node src/scripts/release-verify.ts",
+    "release:promote": "ts-node src/scripts/release-promote.ts",
+    "release:smoke": "ts-node src/scripts/release-smoke.ts",
+    "knowledge:query": "ts-node src/scripts/knowledge-query.ts"
   },
   "dependencies": {
     "@kinetic/renderer-compat": "workspace:*",
     "@playwright/test": "^1.40.0",
     "dotenv": "^16.3.1",
     "execa": "^9.6.1",
+    "fflate": "^0.8.3",
     "fs-extra": "^11.1.0",
     "kokoro-js": "^1.2.1",
+    "yaml": "^2.9.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  knowledge-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - name: Unit tests
+        run: pnpm turbo run test:unit
+
+      # Fails on genuine integrity violations: duplicate ids, missing targets, unresolved evidence,
+      # cycles in acyclic relationships, broken links, unknown locale keys. Warnings do not fail.
+      - name: Validate knowledge
+        run: pnpm knowledge:validate
+
+      - name: Build release (CDN tree + offline ZIP) and verify both
+        run: pnpm --filter @kinetic/engine release:build -- --no-media
+
+      - name: Reproducibility — a second build must produce byte-identical ZIPs
+        working-directory: packages/engine
+        run: |
+          sha256sum dist/release/offline/*.zip > /tmp/first.sums
+          pnpm release:build -- --no-media > /dev/null
+          sha256sum -c /tmp/first.sums
+
+      - name: Offline smoke test (extracted ZIP, non-root base path, real browser)
+        run: pnpm --filter @kinetic/engine release:smoke
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kinetic-docs-release
+          path: packages/engine/dist/release/offline/*.zip

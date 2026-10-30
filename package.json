@@ -6,7 +6,9 @@
     "dev": "turbo run dev",
     "test:unit": "turbo run test:unit",
     "build:pipeline": "turbo run build:pipeline",
-    "postinstall": "playwright install chromium"
+    "postinstall": "playwright install chromium",
+    "knowledge:validate": "turbo run knowledge:validate",
+    "release:build": "turbo run release:build"
   },
   "devDependencies": {
     "playwright": "^1.40.0",

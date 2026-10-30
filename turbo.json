@@ -46,6 +46,21 @@
     },
     "test:unit": {
       "inputs": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/*.ts", "src/**/*.tsx"]
+    },
+    "knowledge:validate": {
+      "inputs": ["content/knowledge/**", "content/locales/**", "generated/**", "src/knowledge/**"],
+      "outputs": []
+    },
+    "release:build": {
+      "inputs": [
+        "content/knowledge/**",
+        "content/locales/**",
+        "generated/**",
+        "src/knowledge/**",
+        "src/scripts/release-*.ts"
+      ],
+      "outputs": ["dist/release/**"],
+      "dependsOn": ["knowledge:validate"]
     }
   }
 }

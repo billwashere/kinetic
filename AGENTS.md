@@ -437,6 +437,29 @@ All run in seconds with no browser, network, or API key.
 
 ---
 
+## Knowledge Graph & Releases
+
+Declarative knowledge lives in `packages/engine/content/knowledge/*.md` (YAML frontmatter + Markdown) and is compiled with the existing pipeline into versioned static releases. Full design, schema, and decisions: [`docs/knowledge/DESIGN.md`](./docs/knowledge/DESIGN.md).
+
+```bash
+cd packages/engine
+pnpm knowledge:validate                       # errors fail; --strict also fails on warnings
+pnpm release:build [--no-media] [--site DIR]  # CDN tree + offline ZIP, both verified
+pnpm release:verify <dir|file.zip> [--offline]
+pnpm release:promote <cdn-root> [<release-id>]  # promote or roll back; no id lists releases
+pnpm release:smoke                            # extracted ZIP + launcher + Chromium, non-root base
+pnpm knowledge:query <release-dir> node <id> --depth 2
+```
+
+- Registries (node kinds, relationship types, evidence policy) are in `src/knowledge/registry.ts`. Change them deliberately and update tests.
+- Procedures are **derived** from `extracted-skeleton.json` (`procedure:<pageId>`); reference them as targets, never re-author them. `playwright-step` evidence is checked against the skeleton.
+- Only default-locale (`en-US`) text lives in the node file; other locales go under `knowledge` in `content/locales/<locale>.json` (ids must exist).
+- Output must stay deterministic: no timestamps, no absolute paths, sorted keys/arrays. `release.test.ts` asserts identical ZIP bytes.
+- Generated URLs in release content must be relative. `verify.ts` rejects root-absolute URLs, so `--site` currently fails until the Astro portal is made relocatable (design doc §6.1).
+- `file://` is unsupported for releases; use the bundled `serve.mjs`.
+
+---
+
 ## Common Gotchas
 
 - **Frame 0 is at time 0**, not at `1/fps`. The first narration step starts at `leadInFrames`, not at frame 0.

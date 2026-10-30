@@ -65,6 +65,8 @@ const PathsSchema = z.object({
   generated: z.string().optional(),
   /** Public assets root (served by Astro) — defaults to <engine>/public */
   public: z.string().optional(),
+  /** Declarative knowledge sources (Markdown + YAML) — defaults to <engine>/content/knowledge */
+  knowledge: z.string().optional(),
 });
 
 const PluginsSchema = z.object({

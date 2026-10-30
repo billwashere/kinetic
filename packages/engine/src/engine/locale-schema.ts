@@ -10,11 +10,19 @@ const PageSchema = z.object({
   breadcrumbs: z.array(z.string()).min(1, 'At least one breadcrumb is required'),
 });
 
+// Localised text for authored knowledge nodes, keyed by node id (e.g. "concept:project").
+// Ids and relationships live in content/knowledge — only display text is localised here.
+const KnowledgeTextSchema = z.object({
+  title: z.string().min(1).optional(),
+  summary: z.string().min(1).optional(),
+});
+
 export const LocaleSchema = z.object({
   locale: z.string().regex(/^[a-z]{2}-[A-Z]{2}$/, 'locale must be in BCP-47 format, e.g. "en-US"'),
   dir: z.enum(['ltr', 'rtl']),
   pages: z.record(z.string(), PageSchema),
   strings: z.record(z.string(), z.string().min(1, 'String values must not be empty')),
+  knowledge: z.record(z.string(), KnowledgeTextSchema).optional(),
 });
 
 export type LocaleData = z.infer<typeof LocaleSchema>;

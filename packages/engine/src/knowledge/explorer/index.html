@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Knowledge explorer</title>
+    <link rel="stylesheet" href="explorer.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Knowledge explorer</h1>
+      <p id="release" aria-live="polite"></p>
+      <div class="controls">
+        <label
+          >Language
+          <select id="locale"></select
+        ></label>
+        <form id="search-form" role="search">
+          <label>Search <input id="q" type="search" autocomplete="off" /></label>
+          <button type="submit">Search</button>
+        </form>
+      </div>
+    </header>
+    <main>
+      <section aria-labelledby="results-h">
+        <h2 id="results-h">Results</h2>
+        <p id="results-count" aria-live="polite"></p>
+        <ul id="results"></ul>
+      </section>
+      <article id="node" aria-live="polite" tabindex="-1">
+        <p>Search for a concept, or pick one from the results.</p>
+      </article>
+    </main>
+    <script type="module" src="explorer.js"></script>
+  </body>
+</html>
