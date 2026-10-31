@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Img, interpolate, useCurrentFrame, useVideoConfig } from '@kinetic/renderer-compat';
-import type { LayerConfig } from '../engine/layer-config';
+import type { LayerConfig } from '../engine/layer-config-schema';
 
 export interface OutroProps {
   textDirection: 'ltr' | 'rtl';

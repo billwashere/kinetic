@@ -1,8 +1,8 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame } from '@kinetic/renderer-compat';
 import type { SubtitleCue } from '../lib/timing-schedule';
-import type { SubtitleStyle } from '../engine/layer-config';
-import { DEFAULT_SUBTITLE_STYLE } from '../engine/layer-config';
+import type { SubtitleStyle } from '../engine/layer-config-schema';
+import { DEFAULT_SUBTITLE_STYLE } from '../engine/layer-config-schema';
 
 interface SubtitleLayerProps {
   subtitles: SubtitleCue[];

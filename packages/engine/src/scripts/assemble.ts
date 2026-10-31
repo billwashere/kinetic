@@ -67,10 +67,7 @@ async function getOrCreateBundle(): Promise<string> {
 }
 
 async function loadManifest(locale: string): Promise<AudioManifest | null> {
-  const p = path.join(
-    process.cwd(),
-    path.join(PUBLIC_DIR, `audio-manifest-${VERSION}-${locale}.json`),
-  );
+  const p = path.join(PUBLIC_DIR, `audio-manifest-${VERSION}-${locale}.json`);
   if (!(await fs.pathExists(p))) {
     console.warn(
       `⚠️  No audio manifest at ${p} — run "pnpm generate:audio" first. Durations fall back to 5s.`,
@@ -338,10 +335,11 @@ async function main(): Promise<void> {
           fps: FPS,
           width: WIDTH,
           height: HEIGHT,
+          crop: recording.viewport,
           crf: renderConfig.crf,
           x264Preset: renderConfig.x264Preset,
         });
-        await fs.remove(overlayFile);
+        if (!process.env.KINETIC_KEEP_INTERMEDIATE) await fs.remove(overlayFile);
       }
 
       if (hasIntroOutro) {

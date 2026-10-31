@@ -1,6 +1,6 @@
 import React from 'react';
 import { AbsoluteFill, Img } from '@kinetic/renderer-compat';
-import type { WatermarkConfig } from '../engine/layer-config';
+import type { WatermarkConfig } from '../engine/layer-config-schema';
 
 interface WatermarkLayerProps {
   watermark: WatermarkConfig;

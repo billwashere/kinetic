@@ -1,7 +1,7 @@
 import React from 'react';
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from '@kinetic/renderer-compat';
 import { WatermarkLayer } from './WatermarkLayer';
-import type { LayerConfig } from '../engine/layer-config';
+import type { LayerConfig } from '../engine/layer-config-schema';
 
 export interface IntroProps {
   /** Page title from the locale JSON — e.g. "Creating a New Project" */

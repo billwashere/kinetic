@@ -62,11 +62,19 @@ export function planScreenSegments(
 }
 
 /** The ffmpeg filter graph that cuts, pads and joins the segments, then overlays the transparent layer. */
-export function buildScreenFilter(segments: ScreenSegment[], fps: number, width: number, height: number): string {
+export function buildScreenFilter(
+  segments: ScreenSegment[],
+  fps: number,
+  width: number,
+  height: number,
+  crop?: { width: number; height: number } | null,
+): string {
+  // Playwright records the viewport in the corner of a larger canvas; keep only the viewport.
+  const cropFilter = crop ? `crop=${crop.width}:${crop.height}:0:0,` : '';
   const parts = segments.map((s, i) => {
     const end = s.freeze ? s.srcStart + 1 / fps : s.srcStart + s.duration;
     return (
-      `[0:v]trim=start=${s.srcStart.toFixed(3)}:end=${end.toFixed(3)},setpts=PTS-STARTPTS,` +
+      `[0:v]trim=start=${s.srcStart.toFixed(3)}:end=${end.toFixed(3)},setpts=PTS-STARTPTS,${cropFilter}` +
       `fps=${fps},scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
       `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=0x0f172a,setsar=1,` +
       `tpad=stop_mode=clone:stop_duration=${s.duration.toFixed(3)},trim=duration=${s.duration.toFixed(3)},` +
@@ -86,13 +94,15 @@ export interface ComposeScreenOptions {
   fps: number;
   width: number;
   height: number;
+  /** The recorded viewport, cropped out of the video canvas before scaling. */
+  crop?: { width: number; height: number } | null;
   crf: number;
   x264Preset: string;
 }
 
 export async function composeScreenLayer(o: ComposeScreenOptions): Promise<void> {
   const script = `${o.outputFile}.filter.txt`;
-  await fs.writeFile(script, buildScreenFilter(o.segments, o.fps, o.width, o.height), 'utf8');
+  await fs.writeFile(script, buildScreenFilter(o.segments, o.fps, o.width, o.height, o.crop), 'utf8');
   try {
     await execa(
       'ffmpeg',
