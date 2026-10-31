@@ -22,7 +22,7 @@ export function buildNarrationFilter(cues: NarrationCue[], keepExistingAudio: bo
   });
   const inputs = [...(keepExistingAudio ? ['[0:a]'] : []), ...cues.map((_, i) => `[n${i}]`)];
   // normalize=0 keeps each clip at its own level; clips do not overlap, music (if any) keeps its volume.
-  const mix = `${inputs.join('')}amix=inputs=${inputs.length}:normalize=0:duration=longest[a]`;
+  const mix = `${inputs.join('')}amix=inputs=${inputs.length}:normalize=0:duration=longest,apad[a]`;
   return [...delayed, mix].join(';');
 }
 

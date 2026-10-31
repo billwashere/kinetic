@@ -75,6 +75,7 @@ describe('buildNarrationFilter', () => {
     expect(f).toContain('[1:a]adelay=4000:all=1[n0]');
     expect(f).toContain('[2:a]adelay=11250:all=1[n1]');
     expect(f).toContain('[n0][n1]amix=inputs=2:normalize=0');
+    expect(f).toContain(',apad[a]');
   });
   it('keeps music already on the video', () => {
     expect(buildNarrationFilter([{ file: 'a.mp3', startSeconds: 0 }], true)).toContain('[0:a][n0]amix=inputs=2');
