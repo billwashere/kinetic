@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { EvidenceSchema, RelationshipSchema } from './schema';
 import { SLUG_RE } from './registry';
 import type { Diagnostic, ParsedNode } from './model';
+import { mermaidProblem } from './mermaid';
 
 /**
  * Authored user guides. A guide is a Markdown file with YAML frontmatter that the
@@ -336,6 +337,18 @@ export async function loadGuidesDir(
     const r = parseGuideFile(raw, file, ctx);
     diagnostics.push(...r.diagnostics);
     if (r.node) nodes.push(r.node);
+    for (const f of stripFences(raw).fences) {
+      if (f.lang !== 'mermaid' || !f.text.trim()) continue; // an empty block is reported by the lint
+      const problem = await mermaidProblem(f.text);
+      if (problem)
+        diagnostics.push({
+          severity: 'error',
+          code: 'invalid-diagram',
+          message: `line ${f.endLine + 1}: mermaid diagram does not parse: ${problem}`,
+          file,
+          ...(r.node ? { nodeId: r.node.id } : {}),
+        });
+    }
   }
   return { nodes, diagnostics };
 }

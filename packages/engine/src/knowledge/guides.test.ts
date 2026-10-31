@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { headingSlug, parseGuideFile, type GuideContext } from './guides';
+import fs from 'fs-extra';
+import os from 'os';
+import path from 'path';
+import { headingSlug, loadGuidesDir, parseGuideFile, type GuideContext } from './guides';
 
 const ctx = (extra: Record<string, string[]> = {}): GuideContext => ({
   anchors: new Map([
@@ -77,5 +80,29 @@ describe('parseGuideFile', () => {
     const body = `# Do it\n\n1. Open **Settings → Things**.\n2. Select **Save**, then **Activate**.\n\nVerify that the status shows Active. If it does not, check the prerequisites.\n`;
     const fm = 'type: how-to\noutcome: A thing is active.\nappliesTo: "1.0"';
     expect(parseGuideFile(doc(fm, body), 'g/a.md', ctx()).diagnostics.filter((d) => d.code !== 'unverified-ui-labels')).toEqual([]);
+  });
+});
+
+describe('loadGuidesDir mermaid', () => {
+  const write = async (diagram: string) => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'guides-'));
+    await fs.writeFile(
+      path.join(dir, 'flow.md'),
+      doc('type: explanation\nappliesTo: "1.0"', `# Flow\n\nHow it flows.\n\n\`\`\`mermaid\n${diagram}\n\`\`\`\n\nText explanation: A leads to B.\n`),
+    );
+    return dir;
+  };
+  it('reports a diagram that does not parse as an error naming the file and line', async () => {
+    const dir = await write('flowchart TD\n  A --> --> B');
+    const { diagnostics } = await loadGuidesDir(dir, dir);
+    const d = diagnostics.find((x) => x.code === 'invalid-diagram');
+    expect(d?.severity).toBe('error');
+    expect(d?.file).toBe('flow.md');
+    expect(d?.message).toMatch(/line \d+/);
+  });
+  it('accepts a valid diagram', async () => {
+    const dir = await write('flowchart TD\n  A --> B');
+    const { diagnostics } = await loadGuidesDir(dir, dir);
+    expect(diagnostics.find((x) => x.code === 'invalid-diagram')).toBeUndefined();
   });
 });
