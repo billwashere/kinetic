@@ -28,11 +28,24 @@ export const ACTION_LEAD_SECONDS = 1.2;
 /** Seconds shown before an assertion held, so the result is on screen for its narration. */
 export const ASSERTION_LEAD_SECONDS = 0.3;
 
+/**
+ * The recording's clock starts at its first frame, which on a slow server is later than the spec's
+ * clock; both clocks end when the page closes, so the lag is the gap between those two durations.
+ */
+export function videoClockOffset(t: Pick<RecordingTimings, 'endMs' | 'videoSeconds'>): number {
+  if (t.endMs === undefined || t.videoSeconds === undefined) return 0;
+  return Math.max(0, t.endMs / 1000 - t.videoSeconds);
+}
+
 export function planScreenSegments(
   schedule: PageTimingSchedule,
   stepMs: RecordingTimings['stepMs'],
   actionStepIds: ReadonlySet<string>,
   fps: number,
+  /** Seconds the video clock lags the step clock (see videoClockOffset). */
+  offsetSec = 0,
+  /** Length of the recording; segments never start past its last frame. */
+  videoSeconds = Infinity,
 ): ScreenSegment[] {
   const timed = schedule.stepTimings.filter((s) => stepMs[s.stepId] !== undefined);
   if (timed.length === 0) return [];
@@ -40,7 +53,7 @@ export function planScreenSegments(
   const segs: ScreenSegment[] = [];
   const startOf = (stepId: string) => {
     const lead = actionStepIds.has(stepId) ? ACTION_LEAD_SECONDS : ASSERTION_LEAD_SECONDS;
-    return Math.max(0, stepMs[stepId] / 1000 - lead);
+    return Math.min(Math.max(0, stepMs[stepId] / 1000 - offsetSec - lead), Math.max(0, videoSeconds - 0.2));
   };
 
   // Frames not covered by a step (lead-in, steps with no recorded time) show the nearest timed step's frame.

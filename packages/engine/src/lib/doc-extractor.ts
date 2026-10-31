@@ -47,6 +47,10 @@ export interface RecordingTimings {
   viewport: { width: number; height: number } | null;
   /** Milliseconds from page creation to each step (action: just before the click; assertion: once it held). */
   stepMs: Record<string, number>;
+  /** Milliseconds from page creation to the page closing (the recording ends then). */
+  endMs?: number;
+  /** Length of the saved video in seconds. With endMs this tells how far the video clock lags the step clock. */
+  videoSeconds?: number;
 }
 
 export class DocStore {
@@ -80,6 +84,9 @@ export class DocStore {
     const video = page.video?.();
     if (video) this.videos[pageId] = video;
     this.timings[pageId].viewport = page.viewportSize?.() ?? null;
+    page.once?.('close', () => {
+      this.timings[pageId].endMs = Date.now() - this.started[pageId];
+    });
   }
 
   getTimings(): Record<string, RecordingTimings> {
@@ -210,9 +217,22 @@ export async function flushDocs(store: DocStore): Promise<void> {
   );
   await fs.ensureDir(cacheDir);
   for (const [pageId, video] of Object.entries(store.getVideos())) {
-    await video.saveAs(path.join(cacheDir, `${pageId}.webm`));
+    const webm = path.join(cacheDir, `${pageId}.webm`);
+    await video.saveAs(webm);
+    store.getTimings()[pageId].videoSeconds = await probeSeconds(webm);
     await fs.writeJson(path.join(cacheDir, `${pageId}.json`), store.getTimings()[pageId], {
       spaces: 2,
     });
+  }
+}
+
+async function probeSeconds(file: string): Promise<number | undefined> {
+  try {
+    const { execa } = await import('execa');
+    const { stdout } = await execa('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]);
+    const n = parseFloat(stdout.trim());
+    return Number.isFinite(n) ? n : undefined;
+  } catch {
+    return undefined;
   }
 }

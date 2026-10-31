@@ -25,7 +25,7 @@ import { resolvePath } from '../engine/workspace-config';
 const LOCALES_DIR = resolvePath('locales', path.join(process.cwd(), 'content/locales'));
 const PUBLIC_DIR = resolvePath('public', path.join(process.cwd(), 'public'));
 const GENERATED_DIR = resolvePath('generated', path.join(process.cwd(), 'generated'));
-import { planScreenSegments, composeScreenLayer } from '../lib/screen-layer';
+import { planScreenSegments, composeScreenLayer, videoClockOffset } from '../lib/screen-layer';
 import type { RecordingTimings } from '../lib/doc-extractor';
 import { WIDTH, HEIGHT } from '../engine/render-config';
 import type { OutroProps } from '../components/OutroSlide';
@@ -331,7 +331,7 @@ async function main(): Promise<void> {
           source: `${recordingBase}.webm`,
           overlay: overlayFile,
           outputFile: contentFile,
-          segments: planScreenSegments(schedule, recording.stepMs, actionIds, FPS),
+          segments: planScreenSegments(schedule, recording.stepMs, actionIds, FPS, videoClockOffset(recording), recording.videoSeconds),
           fps: FPS,
           width: WIDTH,
           height: HEIGHT,

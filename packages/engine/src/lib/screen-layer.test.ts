@@ -52,3 +52,18 @@ describe('plainText', () => {
     );
   });
 });
+
+import { videoClockOffset } from './screen-layer';
+describe('video clock offset', () => {
+  it('is the gap between the step clock and the video length at the end', () => {
+    expect(videoClockOffset({ endMs: 10_000, videoSeconds: 7.6 })).toBeCloseTo(2.4);
+    expect(videoClockOffset({ endMs: 10_000 })).toBe(0);
+  });
+  it('shifts step times and never starts past the last frame', () => {
+    const sched: PageTimingSchedule = { leadInFrames: 0, leadOutFrames: 0, totalFrames: 30, subtitles: [], stepTimings: [{ stepId: 'a', anchor: null, startFrame: 0, durationFrames: 30 }] };
+    const [seg] = planScreenSegments(sched, { a: 9_000 }, new Set(), 30, 2.4, 7.6);
+    expect(seg.srcStart).toBeCloseTo(6.3, 5);
+    const [late] = planScreenSegments(sched, { a: 99_000 }, new Set(), 30, 0, 7.6);
+    expect(late.srcStart).toBeCloseTo(7.4, 5);
+  });
+});
