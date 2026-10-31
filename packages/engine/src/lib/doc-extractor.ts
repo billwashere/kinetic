@@ -138,6 +138,28 @@ export class DocStore {
   }
 }
 
+// ─── Loading state ────────────────────────────────────────────────────────────
+
+/** CSS selector for "this part of the page is still loading". Override with KINETIC_LOADING_SELECTOR. */
+const LOADING_SELECTOR = process.env.KINETIC_LOADING_SELECTOR ?? '.animate-pulse, [aria-busy="true"]';
+
+/**
+ * Waits until nothing on the page is in a loading state (skeletons, aria-busy), for two checks in a
+ * row so a skeleton that is about to be replaced does not slip through. Never throws: a page that
+ * never settles is recorded as it is rather than failing the spec.
+ */
+export async function waitForSettled(page: any, timeoutMs = Number(process.env.KINETIC_EXPECT_TIMEOUT) || 5000): Promise<void> {
+  const idle = () =>
+    page.waitForFunction((sel: string) => !document.querySelector(sel), LOADING_SELECTOR, { timeout: timeoutMs });
+  try {
+    await idle();
+    await page.waitForTimeout(300);
+    await idle();
+  } catch {
+    /* still loading after the timeout: record the page anyway */
+  }
+}
+
 // ─── Convenience wrappers ─────────────────────────────────────────────────────
 
 export async function docStep(
@@ -148,6 +170,7 @@ export async function docStep(
   selector: string,
   textKey: string,
 ): Promise<void> {
+  await waitForSettled(page);
   const locator = page.locator(selector);
   await locator.waitFor({
     state: 'visible',
