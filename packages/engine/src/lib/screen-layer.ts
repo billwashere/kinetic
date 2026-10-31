@@ -21,6 +21,11 @@ export interface ScreenSegment {
   duration: number;
   /** Hold the single frame at srcStart instead of playing. */
   freeze: boolean;
+  /**
+   * Seconds of the recording to actually play from srcStart; the last frame is then held for the rest of
+   * `duration`. Keeps a long narration from running on into the next step's page. Defaults to `duration`.
+   */
+  play?: number;
 }
 
 /** Seconds of the recording shown before an action's click, so the viewer sees what is being clicked. */
@@ -56,6 +61,7 @@ export function planScreenSegments(
   if (timed.length === 0) return [];
 
   const segs: ScreenSegment[] = [];
+  const at = (stepId: string) => stepMs[stepId] / 1000 - offsetSec;
   const startOf = (stepId: string) => {
     const lead = actionStepIds.has(stepId) ? ACTION_LEAD_SECONDS : ASSERTION_LEAD_SECONDS;
     return Math.min(Math.max(0, stepMs[stepId] / 1000 - offsetSec - lead), Math.max(0, videoSeconds - 0.2));
@@ -71,7 +77,12 @@ export function planScreenSegments(
       cursor += gap;
     }
     if (stepMs[t.stepId] !== undefined) lastSrc = startOf(t.stepId);
-    segs.push({ srcStart: lastSrc, duration: t.durationFrames / fps, freeze: stepMs[t.stepId] === undefined });
+    // Play only until the next recorded step happens (the spec moves on within a second or two, while
+    // the narration for this step may last many seconds): the rest holds the last frame.
+    const next = schedule.stepTimings.slice(schedule.stepTimings.indexOf(t) + 1).find((n) => stepMs[n.stepId] !== undefined);
+    const play =
+      stepMs[t.stepId] !== undefined && next ? Math.max(0.2, at(next.stepId) - 0.1 - lastSrc) : undefined;
+    segs.push({ srcStart: lastSrc, duration: t.durationFrames / fps, freeze: stepMs[t.stepId] === undefined, play });
     cursor += t.durationFrames;
   }
   const tail = schedule.totalFrames - cursor;
@@ -90,7 +101,7 @@ export function buildScreenFilter(
   // Playwright records the viewport in the corner of a larger canvas; keep only the viewport.
   const cropFilter = crop ? `crop=${crop.width}:${crop.height}:0:0,` : '';
   const parts = segments.map((s, i) => {
-    const end = s.freeze ? s.srcStart + 1 / fps : s.srcStart + s.duration;
+    const end = s.freeze ? s.srcStart + 1 / fps : s.srcStart + Math.min(s.duration, s.play ?? s.duration);
     return (
       `[0:v]trim=start=${s.srcStart.toFixed(3)}:end=${end.toFixed(3)},setpts=PTS-STARTPTS,${cropFilter}` +
       `fps=${fps},scale=${width}:${height}:force_original_aspect_ratio=decrease,` +

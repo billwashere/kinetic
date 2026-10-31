@@ -277,7 +277,7 @@ export async function flushDocs(store: DocStore): Promise<void> {
     const webm = path.join(cacheDir, `${pageId}.webm`);
     await video.saveAs(webm);
     store.getTimings()[pageId].videoSeconds = await probeSeconds(webm);
-    store.getTimings()[pageId].videoSyncSeconds = await findSyncMarker(webm);
+    store.getTimings()[pageId].videoSyncSeconds = await findSyncMarker(webm, store.getTimings()[pageId].viewport);
     await fs.writeJson(path.join(cacheDir, `${pageId}.json`), store.getTimings()[pageId], {
       spaces: 2,
     });
@@ -295,8 +295,14 @@ async function probeSeconds(file: string): Promise<number | undefined> {
   }
 }
 
-/** Seconds into the video of the first mostly-magenta frame (the sync marker), or undefined. */
-export async function findSyncMarker(file: string): Promise<number | undefined> {
+/**
+ * Seconds into the video of the first mostly-magenta frame (the sync marker), or undefined. Playwright
+ * records the viewport in the corner of a larger canvas, so crop to the viewport first.
+ */
+export async function findSyncMarker(
+  file: string,
+  viewport: { width: number; height: number } | null = null,
+): Promise<number | undefined> {
   try {
     const { execa } = await import('execa');
     const fps = 20;
@@ -304,7 +310,7 @@ export async function findSyncMarker(file: string): Promise<number | undefined> 
     const h = 9;
     const { stdout } = await execa(
       'ffmpeg',
-      ['-v', 'error', '-i', file, '-vf', `fps=${fps},scale=${w}:${h}`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
+      ['-v', 'error', '-i', file, '-vf', `${viewport ? `crop=${viewport.width}:${viewport.height}:0:0,` : ''}fps=${fps},scale=${w}:${h}`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
       { encoding: 'buffer' },
     );
     const frame = w * h * 3;

@@ -82,3 +82,25 @@ describe('buildNarrationFilter', () => {
     expect(buildNarrationFilter([{ file: 'a.mp3', startSeconds: 0 }], true)).toContain('[0:a][n0]amix=inputs=2');
   });
 });
+
+describe('planScreenSegments play window', () => {
+  const sched: PageTimingSchedule = {
+    leadInFrames: 0, leadOutFrames: 0, totalFrames: 30 * 10,
+    subtitles: [],
+    stepTimings: [
+      { stepId: 'a', anchor: null, startFrame: 0, durationFrames: 30 * 7 },
+      { stepId: 'b', anchor: { x: 1, y: 1, width: 1, height: 1 }, startFrame: 30 * 7, durationFrames: 30 * 3 },
+    ],
+  };
+  it('stops a long narration at the next step instead of playing on into the next page', () => {
+    const [a, b] = planScreenSegments(sched, { a: 10_000, b: 10_800 }, new Set(['b']), 30);
+    expect(a.duration).toBeCloseTo(7);
+    expect(a.play).toBeCloseTo(10.8 - 0.1 - (10 - 0.3), 5);
+    expect(b.play).toBeUndefined();
+  });
+  it('uses only the play window in the filter', () => {
+    const f = buildScreenFilter([{ srcStart: 10, duration: 7, freeze: false, play: 0.8 }], 30, 1920, 1080);
+    expect(f).toContain('trim=start=10.000:end=10.800');
+    expect(f).toContain('tpad=stop_mode=clone:stop_duration=7.000');
+  });
+});
