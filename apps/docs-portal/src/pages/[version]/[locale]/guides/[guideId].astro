@@ -153,39 +153,24 @@ const verificationLabel: Record<string, string> = {
 </DocLayout>
 
 <style is:global>
-  .k-diagram { margin: 1.5rem 0; overflow-x: auto; }
-  .k-diagram-box { display: flex; justify-content: center; }
-  .k-diagram-box pre { margin: 0; font-size: 0.8rem; white-space: pre; }
-  .k-diagram-box svg { max-width: 100%; height: auto; }
-</style>
-
-<script>
-  // Draw each mermaid diagram in the page. mermaid is bundled with the site (no CDN, works offline) and
-  // loaded only on pages that have a diagram. Re-drawn when the theme changes so colours follow it.
-  const boxes = Array.from(document.querySelectorAll<HTMLElement>('.k-diagram-box'));
-  if (boxes.length > 0) {
-    (async () => {
-      const { default: mermaid } = await import('mermaid');
-      let n = 0;
-      const draw = async () => {
-        const dark = document.documentElement.classList.contains('dark');
-        mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: dark ? 'dark' : 'default', fontFamily: 'inherit' });
-        for (const box of boxes) {
-          const source = box.dataset.source ?? '';
-          try {
-            const { svg } = await mermaid.render(`k-diagram-${n++}`, source);
-            box.innerHTML = svg;
-            box.setAttribute('role', 'img');
-            box.setAttribute('aria-label', 'Diagram; the text explanation follows it.');
-            delete box.dataset.error;
-          } catch {
-            // Keep the readable source rather than an empty box.
-            box.dataset.error = 'true';
-          }
-        }
-      };
-      await draw();
-      new MutationObserver(draw).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    })();
+  .k-diagram {
+    --k-diagram-bg: #ffffff;
+    --k-diagram-fg: #0f172a;
+    margin: 1.5rem 0;
+    overflow-x: auto;
+    display: flex;
+    justify-content: center;
   }
-</script>
+  .dark .k-diagram {
+    --k-diagram-bg: #020617;
+    --k-diagram-fg: #e2e8f0;
+  }
+  .k-diagram svg {
+    max-width: 100%;
+    height: auto;
+  }
+  .k-diagram pre {
+    margin: 0;
+    font-size: 0.8rem;
+  }
+</style>

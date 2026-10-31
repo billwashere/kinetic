@@ -1,4 +1,5 @@
 import { marked } from 'marked';
+import { renderMermaidSVG } from 'beautiful-mermaid';
 import type { GuideItem } from './knowledge';
 
 export const CATEGORY_LABELS: Record<string, string> = {
@@ -80,14 +81,30 @@ export function renderGuide(body: string, knownSlugs: Set<string>): { html: stri
     if (depth === 2 || depth === 3) headings.push({ depth, id, text: text.replace(/<[^>]+>/g, '') });
     return `<h${depth} id="${id}">${text}</h${depth}>\n`;
   };
-  // Mermaid fences become a box the page draws the diagram into (guide-diagrams script); the source stays in
-  // the box as readable text until then, and when scripts are off.
-  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  // Mermaid fences are drawn to a static SVG here, at build time, so no diagram code ships to the browser.
+  // Colours are CSS variables (set in the guide page styles), so light/dark needs no redraw. A diagram the
+  // renderer does not support (it covers flowchart, state, sequence, class, ER and XY chart) keeps its
+  // source as readable text, and the build says so.
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const defaultCode = renderer.code.bind(renderer);
-  renderer.code = (code: string, infostring: string | undefined, escaped: boolean) =>
-    (infostring ?? '').trim().split(/\s+/)[0] === 'mermaid'
-      ? `<figure class="k-diagram not-prose"><div class="k-diagram-box" data-source="${esc(code)}"><pre><code>${esc(code)}</code></pre></div></figure>\n`
-      : defaultCode(code, infostring, escaped);
+  renderer.code = (code: string, infostring: string | undefined, escaped: boolean) => {
+    if ((infostring ?? '').trim().split(/\s+/)[0] !== 'mermaid') return defaultCode(code, infostring, escaped);
+    try {
+      const drawn = renderMermaidSVG(code, {
+        bg: 'var(--k-diagram-bg)',
+        fg: 'var(--k-diagram-fg)',
+        accent: 'var(--kinetic-primary)',
+        transparent: true,
+      });
+      // The renderer embeds an @import of Google Fonts in every SVG. The site has its own font stack, and the
+      // import would break the offline package (and send readers' requests to a third party), so drop it.
+      const svg = drawn.replace(/@import\s+url\([^)]*\);?/g, '');
+      return `<figure class="k-diagram not-prose" role="img" aria-label="Diagram; a text explanation follows it.">${svg}</figure>\n`;
+    } catch (e) {
+      console.warn(`[guides] mermaid diagram not drawn (${(e as Error).message.split('\n')[0]}); showing its source`);
+      return `<figure class="k-diagram not-prose"><pre><code>${esc(code)}</code></pre></figure>\n`;
+    }
+  };
   renderer.link = (href: string, title: string | null | undefined, text: string) => {
     const url = href ?? '';
     const external = /^https?:/.test(url);
