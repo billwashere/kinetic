@@ -1,0 +1,14 @@
+---
+/** Home page for one locale, at <version>/<locale>/. */
+import Home from '../../../components/Home.astro';
+import { homeData, homeLocales } from '../../../lib/home';
+
+export async function getStaticPaths() {
+  const locales = await homeLocales();
+  const first = locales.length ? await homeData(locales[0]) : null;
+  return first ? locales.map((locale) => ({ params: { version: first.version, locale } })) : [];
+}
+const { locale } = Astro.params;
+---
+
+<Home locale={locale!} base="../../" />

@@ -1,0 +1,186 @@
+---
+/**
+ * Home page for one locale: a header with the site-wide navigation, entry points for the three ways in
+ * (watch a walkthrough, read a guide, explore concepts), then the walkthroughs and the guides by
+ * category. `base` is the relative path from the page to the site root.
+ */
+import { BookOpen, Compass, FileText, Moon, PlayCircle, Sun } from 'lucide-react';
+import { SITE, themeStyleTag, faviconHref, uiStrings } from '../config';
+import { DOC_TYPE_LABELS } from '../lib/guides';
+import { homeData } from '../lib/home';
+import LanguageSelect from './LanguageSelect.astro';
+
+interface Props {
+  locale: string;
+  base: string;
+}
+const { locale, base } = Astro.props;
+const ui = uiStrings(locale);
+const d = await homeData(locale);
+const explorer = d.hasExplorer ? `${base}../explorer/` : null;
+const pageUrl = (id: string) => `${base}${d.version}/${locale}/${id}/`;
+const guideUrl = (slug: string) => `${base}${d.version}/${locale}/guides/${slug}/`;
+const langUrls = Object.fromEntries(d.locales.map((l) => [l, l === d.locales[0] ? base : `${base}${d.version}/${l}/`]));
+const empty = d.walkthroughs.length === 0 && d.guideCount === 0;
+const card =
+  'block h-full rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-400 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-600 k-focus';
+const tile =
+  'flex items-start gap-4 rounded-xl border border-slate-200 bg-white p-5 transition hover:border-slate-400 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-600 k-focus';
+---
+
+<!doctype html>
+<html lang={locale.split('-')[0]}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={SITE.description} />
+    {faviconHref(base) && <link rel="icon" href={faviconHref(base)} sizes="any" />}
+    <title>{SITE.name}</title>
+    <script is:inline>
+      (function () {
+        var mode = null;
+        try {
+          mode = localStorage.getItem('kinetic-theme');
+        } catch (e) {}
+        if (mode === 'dark' || (!mode && matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    <Fragment set:html={themeStyleTag()} />
+    <style is:global>
+      .k-text-primary { color: var(--kinetic-primary); }
+      .dark .k-text-primary { color: color-mix(in srgb, var(--kinetic-primary) 45%, #ffffff); }
+      .k-bg-primary { background-color: var(--kinetic-primary); color: #ffffff; }
+      .k-focus:focus-visible { outline: 2px solid var(--kinetic-primary); outline-offset: 2px; }
+      html { scroll-behavior: smooth; scroll-padding-top: 5rem; }
+    </style>
+  </head>
+  <body class="min-h-screen bg-white font-sans text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+    <header class="sticky top-0 z-40 h-16 border-b border-slate-200 bg-white/95 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+      <div class="mx-auto flex h-full max-w-6xl items-center gap-4 px-6">
+        <a href={base} class="flex flex-shrink-0 items-center gap-2 rounded k-focus" aria-label={SITE.name}>
+          <BookOpen className="h-7 w-7 k-text-primary" aria-hidden="true" />
+          <span class="hidden text-xl font-bold tracking-tight sm:inline">{SITE.name}</span>
+        </a>
+        <nav aria-label={ui.primaryNav} class="ms-4 hidden h-full md:block">
+          <ul class="flex h-full items-stretch gap-6 text-sm font-medium">
+            {d.walkthroughs.length > 0 && <li class="flex"><a href="#walkthroughs" class="flex items-center border-b-2 border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white k-focus">{ui.walkthroughs}</a></li>}
+            {d.guideCount > 0 && <li class="flex"><a href="#guides" class="flex items-center border-b-2 border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white k-focus">{ui.guides}</a></li>}
+            {explorer && <li class="flex"><a href={explorer} class="flex items-center border-b-2 border-transparent text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white k-focus">{ui.explanation}</a></li>}
+          </ul>
+        </nav>
+        <div class="ms-auto flex items-center gap-2">
+          <LanguageSelect urls={langUrls} current={locale} label={ui.language} />
+          <button id="theme-toggle" type="button" aria-pressed="false" aria-label={ui.darkMode} class="rounded-md p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 k-focus">
+            <Moon className="h-5 w-5 dark:hidden" aria-hidden="true" />
+            <Sun className="hidden h-5 w-5 dark:block" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="mx-auto max-w-6xl px-6 py-12">
+      {
+        empty ? (
+          <div class="py-24 text-center">
+            <h1 class="mb-3 text-2xl font-bold">No documentation found</h1>
+            <p class="text-slate-600 dark:text-slate-400">
+              Run <code class="rounded bg-slate-100 px-1.5 py-0.5 dark:bg-slate-800">pnpm build:pipeline</code> to generate the documentation first.
+            </p>
+          </div>
+        ) : (
+          <>
+            <section class="mb-10 max-w-3xl">
+              <h1 class="text-4xl font-bold tracking-tight sm:text-5xl">{SITE.name}</h1>
+              <p class="mt-4 text-lg leading-relaxed text-slate-600 dark:text-slate-300">{SITE.description}</p>
+            </section>
+
+            <section class="mb-14 grid gap-4 md:grid-cols-3" aria-label={ui.primaryNav}>
+              {d.walkthroughs.length > 0 && (
+                <a href="#walkthroughs" class={tile}>
+                  <PlayCircle className="mt-0.5 h-6 w-6 flex-shrink-0 k-text-primary" aria-hidden="true" />
+                  <span><span class="block font-semibold">{ui.walkthroughs}</span><span class="mt-1 block text-sm text-slate-600 dark:text-slate-400">{d.walkthroughs.length} {ui.walkthroughsBlurb}</span></span>
+                </a>
+              )}
+              {d.guideCount > 0 && (
+                <a href="#guides" class={tile}>
+                  <BookOpen className="mt-0.5 h-6 w-6 flex-shrink-0 k-text-primary" aria-hidden="true" />
+                  <span><span class="block font-semibold">{ui.guides}</span><span class="mt-1 block text-sm text-slate-600 dark:text-slate-400">{d.guideCount} {ui.guidesBlurb}</span></span>
+                </a>
+              )}
+              {explorer && (
+                <a href={explorer} class={tile}>
+                  <Compass className="mt-0.5 h-6 w-6 flex-shrink-0 k-text-primary" aria-hidden="true" />
+                  <span><span class="block font-semibold">{ui.explanation}</span><span class="mt-1 block text-sm text-slate-600 dark:text-slate-400">{ui.explanationBlurb}</span></span>
+                </a>
+              )}
+            </section>
+
+            {d.walkthroughs.length > 0 && (
+              <section id="walkthroughs" class="mb-14" aria-labelledby="walkthroughs-h">
+                <h2 id="walkthroughs-h" class="mb-1 flex items-center gap-2 text-2xl font-semibold">
+                  <PlayCircle className="h-6 w-6 k-text-primary" aria-hidden="true" /> {ui.walkthroughs}
+                </h2>
+                <p class="mb-5 text-slate-600 dark:text-slate-400">{ui.walkthroughsIntro}</p>
+                <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {d.walkthroughs.map((w) => (
+                    <li>
+                      <a href={pageUrl(w.id)} class={card}>
+                        <span class="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                          {w.hasVideo ? <PlayCircle className="h-4 w-4" aria-hidden="true" /> : <FileText className="h-4 w-4" aria-hidden="true" />}
+                          {w.hasVideo ? ui.video : ui.steps}{w.group ? ` · ${w.group}` : ''}
+                        </span>
+                        <span class="mt-1 block font-semibold">{w.title}</span>
+                        {w.description && <span class="mt-2 line-clamp-3 block text-sm text-slate-600 dark:text-slate-400">{w.description}</span>}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {d.guideCount > 0 && (
+              <section id="guides" aria-labelledby="guides-h">
+                <h2 id="guides-h" class="mb-1 flex items-center gap-2 text-2xl font-semibold">
+                  <BookOpen className="h-6 w-6 k-text-primary" aria-hidden="true" /> {ui.guides}
+                </h2>
+                <p class="mb-5 text-slate-600 dark:text-slate-400">{ui.guidesIntro}</p>
+                {d.guideGroups.map((grp) => (
+                  <div class="mb-10" aria-labelledby={`cat-${grp.category}`}>
+                    <h3 id={`cat-${grp.category}`} class="mb-3 text-lg font-semibold">{grp.label}</h3>
+                    <ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {grp.guides.map((g) => (
+                        <li>
+                          <a href={guideUrl(g.slug)} class={card}>
+                            <span class="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">{DOC_TYPE_LABELS[g.docType] ?? g.docType}</span>
+                            <span class="mt-1 block font-semibold">{g.title}</span>
+                            <span class="mt-2 line-clamp-3 block text-sm text-slate-600 dark:text-slate-400">{g.summary}</span>
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </section>
+            )}
+          </>
+        )
+      }
+    </main>
+
+    <script>
+      const toggle = document.getElementById('theme-toggle');
+      toggle?.addEventListener('click', () => {
+        const dark = document.documentElement.classList.toggle('dark');
+        toggle.setAttribute('aria-pressed', String(dark));
+        try {
+          localStorage.setItem('kinetic-theme', dark ? 'dark' : 'light');
+        } catch {
+          /* ignore */
+        }
+      });
+      toggle?.setAttribute('aria-pressed', String(document.documentElement.classList.contains('dark')));
+    </script>
+  </body>
+</html>

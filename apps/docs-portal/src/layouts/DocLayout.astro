@@ -10,6 +10,7 @@ import {
   type UiStrings,
 } from '../config';
 import fs from 'fs-extra';
+import LanguageSelect from '../components/LanguageSelect.astro';
 import path from 'path';
 import {
   BookOpen,
@@ -80,6 +81,8 @@ interface Props {
   currentVersion: string;
   versionUrls: Record<string, string>;
   allLocales: string[];
+  /** This page in each locale; defaults to <version>/<locale>/<currentPageId>/. */
+  localeUrls?: Record<string, string>;
   currentLocale: string;
   menuItems: NavPage[];
   currentPageId: string;
@@ -102,6 +105,7 @@ const {
   currentVersion,
   versionUrls,
   allLocales,
+  localeUrls,
   currentLocale,
   menuItems,
   currentPageId,
@@ -114,6 +118,9 @@ const {
 } = Astro.props;
 
 const ui: UiStrings = uiStrings(currentLocale);
+const langUrls: Record<string, string> =
+  localeUrls ??
+  Object.fromEntries(allLocales.map((l) => [l, `${root}${currentVersion}/${l}/${currentPageId}/`]));
 const metaDescription = description ?? SITE.description;
 const favicon = faviconHref(root);
 const logo = SITE.logo ? siteUrl(root, SITE.logo) : '';
@@ -301,6 +308,8 @@ const Chevron = ChevronRight;
             />
           </div>
 
+          <LanguageSelect urls={langUrls} current={currentLocale} label={ui.language} />
+
           <button
             id="theme-toggle"
             type="button"
@@ -403,33 +412,6 @@ const Chevron = ChevronRight;
 
         <!-- Sidebar footer: locale + version switchers -->
         <div class="flex-shrink-0 space-y-3 border-t border-slate-200 p-4 dark:border-slate-800">
-          {
-            allLocales.length > 1 && (
-              <div>
-                <p class="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-600 dark:text-slate-400">
-                  {ui.language}
-                </p>
-                <div class="flex flex-wrap gap-1.5" role="group" aria-label={ui.language}>
-                  {allLocales.map((loc) => (
-                    <a
-                      href={`${root}${currentVersion}/${loc}/${currentPageId}/`}
-                      lang={loc}
-                      aria-label={LOCALE_NAMES[loc] ?? loc}
-                      aria-current={loc === currentLocale ? 'true' : undefined}
-                      class={
-                        'rounded-md px-2.5 py-1 text-xs font-semibold transition-colors k-focus ' +
-                        (loc === currentLocale
-                          ? 'k-bg-primary'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700')
-                      }
-                    >
-                      {LOCALE_LABELS[loc] ?? loc}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )
-          }
           {
             allVersions.length > 1 && (
               <div>

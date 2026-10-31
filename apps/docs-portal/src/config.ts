@@ -103,6 +103,14 @@ export const LOCALE_NAMES: Record<string, string> = process.env.KINETIC_LOCALE_N
 /** Interface chrome text. Page content stays in the engine's locale files; this is only UI labels. */
 const UI_EN = {
   guides: 'User guides',
+  walkthroughs: 'Walkthroughs',
+  walkthroughsBlurb: 'short step-by-step videos',
+  walkthroughsIntro: 'Watch a task being done, with each step written out underneath.',
+  guidesBlurb: 'written guides by topic',
+  guidesIntro: 'Written guides for processes, configuration and everyday tasks.',
+  explanationBlurb: 'Search the concepts and how they connect',
+  video: 'Video',
+  steps: 'Steps',
   howTo: 'How-to guides',
   tutorials: 'Tutorials',
   explanation: 'Explanation',
@@ -124,7 +132,6 @@ const UI_EN = {
   done: "You're done",
   result: 'Result',
   note: 'Note',
-  steps: 'Steps',
   previous: 'Previous',
   next: 'Next',
   language: 'Language',

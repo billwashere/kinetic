@@ -1,59 +1,220 @@
+/* Mirrors the docs portal (Tailwind slate palette, primary accent, same header and cards) so the
+   explorer reads as part of the same site. The accent comes from branding.json at run time. */
 :root {
+  --primary: #2563eb;
   --fg: #0f172a;
   --muted: #475569;
   --bg: #fff;
-  --line: #cbd5e1;
-  --accent: #1d4ed8;
+  --card: #fff;
+  --line: #e2e8f0;
+  --hover: #f1f5f9;
+  --accent: var(--primary);
 }
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fg: #e2e8f0;
-    --muted: #94a3b8;
-    --bg: #0f172a;
-    --line: #334155;
-    --accent: #93c5fd;
-  }
+.dark {
+  --fg: #f1f5f9;
+  --muted: #94a3b8;
+  --bg: #020617;
+  --card: #0f172a;
+  --line: #1e293b;
+  --hover: #1e293b;
+  --accent: color-mix(in srgb, var(--primary) 45%, #fff);
+}
+* {
+  box-sizing: border-box;
 }
 body {
   font:
-    16px/1.5 system-ui,
+    16px/1.6 Inter,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
     sans-serif;
   color: var(--fg);
   background: var(--bg);
   margin: 0;
-  padding: 1rem;
-  max-width: 64rem;
-  margin-inline: auto;
+  -webkit-font-smoothing: antialiased;
 }
 a {
   color: var(--accent);
 }
 :focus-visible {
-  outline: 3px solid var(--accent);
+  outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
-.controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  align-items: end;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
-input,
+
+/* Header: the same bar as the portal */
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  height: 4rem;
+  background: color-mix(in srgb, var(--bg) 95%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  height: 100%;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.brand svg {
+  color: var(--accent);
+}
+nav#tabs {
+  display: flex;
+  align-self: stretch;
+  gap: 1.5rem;
+  margin-inline-start: 1rem;
+}
+nav#tabs a {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+nav#tabs a:hover {
+  color: var(--fg);
+}
+nav#tabs a[aria-current='page'] {
+  border-bottom-color: var(--primary);
+  color: var(--accent);
+}
+.tools {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline-start: auto;
+}
 select,
+input,
 button {
   font: inherit;
-  padding: 0.3rem 0.5rem;
+  font-size: 0.875rem;
+  color: var(--fg);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  padding: 0.45rem 0.7rem;
+}
+select:disabled {
+  opacity: 0.7;
+}
+button {
+  cursor: pointer;
+}
+button:hover {
+  background: var(--hover);
+}
+#theme {
+  border: 0;
+  background: transparent;
+  padding: 0.5rem;
+  color: var(--muted);
+  display: flex;
+}
+#theme .sun,
+.dark #theme .moon {
+  display: none;
+}
+.dark #theme .sun {
+  display: block;
+}
+@media (max-width: 40rem) {
+  .brand span {
+    display: none;
+  }
+}
+
+/* Page */
+.page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+h1 {
+  margin: 0;
+  font-size: 2.25rem;
+  letter-spacing: -0.02em;
+}
+.lede {
+  margin: 0.5rem 0 1.5rem;
+  color: var(--muted);
+  max-width: 44rem;
 }
 main {
   display: grid;
-  grid-template-columns: minmax(12rem, 1fr) 3fr;
+  grid-template-columns: minmax(14rem, 1fr) 3fr;
   gap: 1.5rem;
-  margin-top: 1rem;
+  align-items: start;
 }
-@media (max-width: 40rem) {
+@media (max-width: 48rem) {
   main {
     grid-template-columns: 1fr;
   }
+}
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+.card h2 {
+  margin-top: 0;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+.card h3 {
+  margin-top: 1.5rem;
+  font-size: 1rem;
+}
+#search-form {
+  display: flex;
+  gap: 0.5rem;
+}
+#q {
+  flex: 1;
+  min-width: 0;
+}
+.results-pane ul {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+}
+.results-pane li a {
+  display: block;
+  padding: 0.5rem 0.7rem;
+  border-radius: 0.5rem;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.results-pane li a:hover {
+  background: var(--hover);
 }
 ul {
   padding-inline-start: 1.2rem;
@@ -65,9 +226,10 @@ ul {
 }
 .badge {
   border: 1px solid var(--line);
-  border-radius: 0.6rem;
-  padding: 0 0.4rem;
-  margin-inline-start: 0.3rem;
+  border-radius: 999px;
+  padding: 0 0.5rem;
+  margin-inline-start: 0.4rem;
+  white-space: nowrap;
 }
 .badge.verified {
   border-color: #16a34a;
@@ -77,7 +239,25 @@ ul {
 }
 fieldset {
   border: 1px solid var(--line);
+  border-radius: 0.5rem;
 }
 details {
   margin-top: 0.2rem;
+}
+.open-doc {
+  display: inline-block;
+  margin: 0.25rem 0 0.5rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.5rem;
+  background: var(--primary);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-decoration: none;
+}
+.open-doc:hover {
+  opacity: 0.9;
+}
+.footer {
+  margin-top: 2rem;
 }
