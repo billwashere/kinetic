@@ -1,0 +1,151 @@
+---
+import fs from 'fs-extra';
+import { dirs } from '../../../../lib/workspace.mjs';
+import path from 'path';
+import DocLayout from '../../../../layouts/DocLayout.astro';
+import { loadKnowledge, guidesFor, searchEntriesFor } from '../../../../lib/knowledge';
+import {
+  groupGuides,
+  renderGuide,
+  DOC_TYPE_LABELS,
+  categoryLabel,
+  primaryCategory,
+} from '../../../../lib/guides';
+import { uiStrings } from '../../../../config';
+
+// Emitted as <version>/<locale>/guides/<slug>/index.html: the site root is four levels up.
+const ROOT = '../../../../';
+
+export async function getStaticPaths() {
+  // Hoisted by Astro, so it cannot see module-scope constants.
+  const ROOT = '../../../../';
+  const knowledge = loadKnowledge();
+  if (!knowledge) return [];
+  const generatedDir =
+    dirs.generated;
+  const localesDir =
+    dirs.locales;
+  const explorerPath = process.env.KINETIC_EXPLORER_PATH ?? '../explorer/';
+  const explorerUrl = (id: string) => (explorerPath ? `${ROOT}${explorerPath}#${encodeURIComponent(id)}` : null);
+  const versions: string[] = fs.existsSync(generatedDir) ? await fs.readdir(generatedDir) : [];
+  const locales = (await fs.readdir(localesDir))
+    .filter((f: string) => f.endsWith('.json'))
+    .map((f: string) => path.basename(f, '.json'));
+
+  const firstPage: Record<string, string> = {};
+  for (const v of versions) {
+    try {
+      firstPage[v] = (await fs.readJson(path.join(generatedDir, v, 'extracted-skeleton.json')))[0]?.pageId;
+    } catch {
+      /* version without a skeleton */
+    }
+  }
+
+  const version = knowledge.docsVersion;
+  const paths = [];
+  for (const locale of locales) {
+    const localeData = await fs.readJson(path.join(localesDir, `${locale}.json`));
+    const guides = guidesFor(knowledge, locale);
+    const slugs = new Set(guides.map((g) => g.slug));
+    const url = (slug: string) => `${ROOT}${version}/${locale}/guides/${slug}/`;
+    const menuItems = groupGuides(guides).flatMap((grp) =>
+      grp.guides.map((g) => ({ id: g.id, title: g.title, url: url(g.slug), group: grp.label, subgroup: null })),
+    );
+    const searchEntries = [
+      ...guides.map((g) => ({ url: url(g.slug), title: g.title, summary: g.summary, kind: 'guide' })),
+      ...searchEntriesFor(knowledge, locale, explorerUrl).filter((e) => e.kind !== 'guide'),
+    ];
+    const versionUrls: Record<string, string> = {};
+    for (const v of versions) {
+      versionUrls[v] = v === version ? (menuItems[0]?.url ?? ROOT) : `${ROOT}${v}/${locale}/${firstPage[v] ?? ''}/`;
+    }
+    const sections = [{ key: 'guides', url: menuItems[0]?.url ?? ROOT, active: true }] as any[];
+    for (const [key, p] of [['howTo', firstPage[version]]] as const) {
+      if (p) sections.push({ key, url: `${ROOT}${version}/${locale}/${p}/`, active: false });
+    }
+    if (explorerPath) sections.push({ key: 'explanation', url: `${ROOT}${explorerPath}`, active: false });
+
+    guides.forEach((g, i) => {
+      const { html, headings } = renderGuide(g.body, slugs);
+      paths.push({
+        params: { version, locale, guideId: g.slug },
+        props: {
+          guide: g,
+          html,
+          headings,
+          sections,
+          menuItems,
+          searchEntries,
+          versionUrls,
+          allVersions: versions,
+          allLocales: locales,
+          dir: localeData.dir ?? 'ltr',
+          lang: localeData.locale ?? locale,
+          prevPage: menuItems[i - 1] ? { url: menuItems[i - 1].url, title: menuItems[i - 1].title } : null,
+          nextPage: menuItems[i + 1] ? { url: menuItems[i + 1].url, title: menuItems[i + 1].title } : null,
+        },
+      });
+    });
+  }
+  return paths;
+}
+
+const { version, locale } = Astro.params;
+const { guide, html, headings, sections, menuItems, searchEntries, versionUrls, allVersions, allLocales, dir, lang, prevPage, nextPage } =
+  Astro.props;
+const ui = uiStrings(locale!);
+const badge = 'rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300';
+const verificationLabel: Record<string, string> = {
+  verified: 'Verified by a reviewer',
+  partial: 'Partly verified',
+  unverified: 'Not yet verified',
+};
+---
+
+<DocLayout
+  title={guide.title}
+  description={guide.summary}
+  dir={dir}
+  lang={lang}
+  allVersions={allVersions}
+  currentVersion={version!}
+  versionUrls={versionUrls}
+  allLocales={allLocales}
+  currentLocale={locale!}
+  menuItems={menuItems}
+  currentPageId={guide.id}
+  root={ROOT}
+  breadcrumbs={[ui.guides, categoryLabel(primaryCategory(guide))]}
+  prevPage={prevPage}
+  nextPage={nextPage}
+  sections={sections}
+  searchEntries={searchEntries}
+>
+  <ul class="mb-6 flex flex-wrap gap-2" aria-label="Guide details">
+    <li class={badge}>{DOC_TYPE_LABELS[guide.docType] ?? guide.docType}</li>
+    {guide.appliesTo && <li class={badge}>Applies to {guide.appliesTo}</li>}
+    <li class={badge}>{verificationLabel[guide.verification] ?? guide.verification}</li>
+  </ul>
+  <div
+    class="prose prose-slate max-w-none dark:prose-invert prose-headings:scroll-mt-24 prose-a:k-text-primary prose-table:text-sm prose-pre:bg-slate-900"
+    set:html={html}
+  />
+  {
+    headings.length > 2 && (
+      <Fragment slot="rail">
+        <nav aria-label={ui.onThisPage}>
+          <h2 class="mb-2 text-sm font-semibold text-slate-900 dark:text-slate-100">{ui.onThisPage}</h2>
+          <ul class="space-y-1.5 border-s border-slate-200 text-sm dark:border-slate-800">
+            {headings.map((h) => (
+              <li class={h.depth === 3 ? 'ps-6' : 'ps-3'}>
+                <a href={`#${h.id}`} class="text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white">
+                  {h.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </Fragment>
+    )
+  }
+</DocLayout>

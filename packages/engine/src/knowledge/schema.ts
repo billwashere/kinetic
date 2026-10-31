@@ -3,7 +3,7 @@ import { EVIDENCE_TYPES, NODE_KINDS, SLUG_RE } from './registry';
 
 export const NODE_ID_RE = new RegExp(`^(${NODE_KINDS.join('|')}):${SLUG_RE.source.slice(1)}`);
 
-const EvidenceSchema = z
+export const EvidenceSchema = z
   .object({
     type: z.enum(EVIDENCE_TYPES),
     /** playwright-step */
@@ -29,7 +29,7 @@ const EvidenceSchema = z
     }
   });
 
-const RelationshipSchema = z
+export const RelationshipSchema = z
   .object({
     // Validated against the registry later so the error can name file + node, not a zod path.
     type: z.string().min(1),

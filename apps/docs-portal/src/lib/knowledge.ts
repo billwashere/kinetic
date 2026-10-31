@@ -30,6 +30,7 @@ interface Node {
   id: string;
   kind: string;
   origin: string;
+  guide?: { docType: string; categories: string[]; appliesTo?: string; verification: string };
 }
 
 export interface Knowledge {
@@ -38,6 +39,8 @@ export interface Knowledge {
   edges: Edge[];
   relationships: Record<string, RegistryRel>;
   text: Record<string, Record<string, { title: string; summary: string }>>;
+  /** Authored node bodies (Markdown), keyed by node id. Not localised yet. */
+  bodies: Record<string, { body: string }>;
 }
 
 export interface RelatedItem {
@@ -78,10 +81,64 @@ export function loadKnowledge(dir = knowledgeDir()): Knowledge | null {
       edges: read('graph/edges.json').edges,
       relationships: read('registry.json').relationships,
       text,
+      bodies: readBodies(dir),
     };
   } catch {
     return null;
   }
+}
+
+function readBodies(dir: string): Knowledge['bodies'] {
+  try {
+    return fs.readJsonSync(path.join(dir, 'graph/node-content.json')).nodes ?? {};
+  } catch {
+    return {};
+  }
+}
+
+export interface GuideItem {
+  id: string;
+  /** URL segment: the part of the node id after "guide:". */
+  slug: string;
+  title: string;
+  summary: string;
+  docType: string;
+  categories: string[];
+  appliesTo?: string;
+  verification: string;
+  body: string;
+}
+
+/** Plain-text card blurb: Markdown markers removed, cut at a word boundary. */
+export function blurb(md: string, max = 170): string {
+  const t = md
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/[*_`]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (t.length <= max) return t;
+  return t.slice(0, max).replace(/\s+\S*$/, '') + '…';
+}
+
+/** Authored guides in title order, with their Markdown body. */
+export function guidesFor(k: Knowledge, locale: string): GuideItem[] {
+  const texts = k.text[locale] ?? k.text[Object.keys(k.text)[0]] ?? {};
+  const out: GuideItem[] = [];
+  for (const n of k.nodes.values()) {
+    if (n.kind !== 'guide' || !n.guide) continue;
+    out.push({
+      id: n.id,
+      slug: n.id.slice(n.id.indexOf(':') + 1),
+      title: texts[n.id]?.title ?? n.id,
+      summary: blurb(texts[n.id]?.summary ?? ''),
+      docType: n.guide.docType,
+      categories: n.guide.categories,
+      appliesTo: n.guide.appliesTo,
+      verification: n.guide.verification,
+      body: k.bodies[n.id]?.body ?? '',
+    });
+  }
+  return out.sort((a, b) => a.title.localeCompare(b.title));
 }
 
 function describeEvidence(e: Evidence): string {

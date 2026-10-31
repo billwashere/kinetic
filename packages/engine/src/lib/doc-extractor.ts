@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
+import { resolvePath } from '../engine/workspace-config';
 
 const VERSION = process.env.DOCS_VERSION || 'v1.0';
 
@@ -40,11 +41,24 @@ export interface DocPage {
   diataxis?: 'tutorial';
 }
 
+/** How one recorded page lines up with its screen recording. Written next to the video, not in the skeleton. */
+export interface RecordingTimings {
+  /** Viewport the anchors were measured in. */
+  viewport: { width: number; height: number } | null;
+  /** Milliseconds from page creation to each step (action: just before the click; assertion: once it held). */
+  stepMs: Record<string, number>;
+}
+
 export class DocStore {
   private pages: Record<string, DocPage> = {};
+  private started: Record<string, number> = {};
+  private timings: Record<string, RecordingTimings> = {};
+  private videos: Record<string, { saveAs(p: string): Promise<void> }> = {};
   private commentCounter = 0;
 
   page(pageId: string, options: { videoless?: boolean; diataxis?: 'how-to' | 'tutorial' } = {}): void {
+    this.started[pageId] = Date.now();
+    this.timings[pageId] = { viewport: null, stepMs: {} };
     this.pages[pageId] = {
       pageId,
       steps: [],
@@ -52,6 +66,28 @@ export class DocStore {
       // Only non-default values are serialised so existing skeletons stay byte-identical.
       ...(options.diataxis === 'tutorial' ? { diataxis: 'tutorial' as const } : {}),
     };
+  }
+
+  /** Marks `stepId` as happening now, relative to when the page was created (for the screen recording). */
+  markTime(pageId: string, stepId: string): void {
+    const t0 = this.started[pageId];
+    if (t0 !== undefined) this.timings[pageId].stepMs[stepId] = Date.now() - t0;
+  }
+
+  /** Remembers the page's video and viewport so flushDocs() can save them next to the skeleton. */
+  attachPage(pageId: string, page: any): void {
+    if (this.videos[pageId] || !this.timings[pageId]) return;
+    const video = page.video?.();
+    if (video) this.videos[pageId] = video;
+    this.timings[pageId].viewport = page.viewportSize?.() ?? null;
+  }
+
+  getTimings(): Record<string, RecordingTimings> {
+    return this.timings;
+  }
+
+  getVideos(): Record<string, { saveAs(p: string): Promise<void> }> {
+    return this.videos;
   }
 
   recordStep(pageId: string, stepId: string, textKey: string, anchor: DocStep['anchor']): void {
@@ -106,9 +142,14 @@ export async function docStep(
   textKey: string,
 ): Promise<void> {
   const locator = page.locator(selector);
-  await locator.waitFor({ state: 'visible', timeout: 5000 });
+  await locator.waitFor({
+    state: 'visible',
+    timeout: Number(process.env.KINETIC_EXPECT_TIMEOUT) || 5000,
+  });
   const box = await locator.boundingBox();
   store.recordStep(pageId, stepId, textKey, box);
+  store.attachPage(pageId, page);
+  store.markTime(pageId, stepId);
   if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await locator.click();
 }
@@ -122,6 +163,7 @@ export async function docAssert(
 ): Promise<void> {
   store.recordAssertion(pageId, assertId, textKey);
   await assertionFn();
+  store.markTime(pageId, assertId);
 }
 
 /**
@@ -135,7 +177,11 @@ export function docNote(store: DocStore, pageId: string, noteId: string, textKey
 // ─── flushDocs ────────────────────────────────────────────────────────────────
 
 export async function flushDocs(store: DocStore): Promise<void> {
-  const outPath = path.join(process.cwd(), 'generated', VERSION, 'extracted-skeleton.json');
+  const outPath = path.join(
+    resolvePath('generated', path.join(process.cwd(), 'generated')),
+    VERSION,
+    'extracted-skeleton.json',
+  );
   await fs.ensureDir(path.dirname(outPath));
 
   let existing: DocPage[] = [];
@@ -154,4 +200,19 @@ export async function flushDocs(store: DocStore): Promise<void> {
   const merged = [...existing.filter((p) => !incomingIds.has(p.pageId)), ...incoming];
 
   await fs.writeJson(outPath, merged, { spaces: 2 });
+
+  // Screen recordings and their step timings go to the (gitignored) visual cache, where assemble.ts
+  // finds them as <pageId>.webm + <pageId>.json. The skeleton stays free of timings so it does not churn.
+  const cacheDir = path.join(
+    resolvePath('public', path.join(process.cwd(), 'public')),
+    'visual-cache',
+    VERSION,
+  );
+  await fs.ensureDir(cacheDir);
+  for (const [pageId, video] of Object.entries(store.getVideos())) {
+    await video.saveAs(path.join(cacheDir, `${pageId}.webm`));
+    await fs.writeJson(path.join(cacheDir, `${pageId}.json`), store.getTimings()[pageId], {
+      spaces: 2,
+    });
+  }
 }

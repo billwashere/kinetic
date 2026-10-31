@@ -22,14 +22,19 @@ import {
 import type { IntroProps } from '../components/IntroSlide';
 import { resolvePath } from '../engine/workspace-config';
 
-const LOCALES_DIR = resolvePath('locales', LOCALES_DIR);
-const PUBLIC_DIR = resolvePath('public', PUBLIC_DIR);
+const LOCALES_DIR = resolvePath('locales', path.join(process.cwd(), 'content/locales'));
+const PUBLIC_DIR = resolvePath('public', path.join(process.cwd(), 'public'));
 const GENERATED_DIR = resolvePath('generated', path.join(process.cwd(), 'generated'));
+import { planScreenSegments, composeScreenLayer } from '../lib/screen-layer';
+import type { RecordingTimings } from '../lib/doc-extractor';
+import { WIDTH, HEIGHT } from '../engine/render-config';
 import type { OutroProps } from '../components/OutroSlide';
 
 dotenv.config();
 
 const VERSION = process.env.DOCS_VERSION || 'v1.0';
+// --no-screen renders the overlay-only video (no Playwright recording underneath).
+const noScreen = process.argv.includes('--no-screen');
 const ENTRY_POINT = path.join(process.cwd(), 'src/index.tsx');
 const BUNDLE_CACHE_PATH = path.join(process.cwd(), '.rc-bundle-cache');
 
@@ -207,7 +212,7 @@ async function main(): Promise<void> {
   const cacheDir = path.join(PUBLIC_DIR, `video-cache/${VERSION}`);
   const intermediateDir = path.join(cacheDir, '.intermediate');
   await fs.ensureDir(cacheDir);
-  if (hasIntroOutro) await fs.ensureDir(intermediateDir);
+  await fs.ensureDir(intermediateDir);
 
   const locales = await getAvailableLocales();
   console.log(`\n🌍 Rendering locales: ${locales.join(', ')}`);
@@ -276,34 +281,68 @@ async function main(): Promise<void> {
         ? path.join(intermediateDir, `${locale}_${page.pageId}__content.mp4`)
         : finalOutputFile;
 
+      // Screen recording from the spec run (visual-cache/<version>/<pageId>.webm + .json), if there is one.
+      const recordingBase = path.join(PUBLIC_DIR, 'visual-cache', VERSION, page.pageId);
+      let recording: RecordingTimings | null = null;
+      if (!noScreen && (await fs.pathExists(`${recordingBase}.webm`)) && (await fs.pathExists(`${recordingBase}.json`))) {
+        recording = await fs.readJson(`${recordingBase}.json`);
+      } else if (!noScreen) {
+        console.warn(`   ⚠️  No screen recording for ${page.pageId} — run "pnpm test:docs"; rendering without it.`);
+      }
+      const scale = recording?.viewport ? WIDTH / recording.viewport.width : 1;
+      const stepTimings = schedule.stepTimings.map((t) =>
+        t.anchor && scale !== 1
+          ? { ...t, anchor: { x: t.anchor.x * scale, y: t.anchor.y * scale, width: t.anchor.width * scale, height: t.anchor.height * scale } }
+          : t,
+      );
+
       const contentProps: KineticVideoProps = {
         locale,
         pageId: page.pageId,
         version: VERSION,
         textDirection,
         subtitles: schedule.subtitles,
-        stepTimings: schedule.stepTimings,
+        stepTimings,
         leadInFrames: schedule.leadInFrames,
         leadOutFrames: schedule.leadOutFrames,
         layerConfig,
+        screenLayer: !!recording,
       };
 
       console.log(
-        `   🎥 Content: ${schedule.subtitles.length} subtitle cues, ${schedule.stepTimings.filter((s) => s.anchor).length} anchors`,
+        `   🎥 Content: ${schedule.subtitles.length} subtitle cues, ${schedule.stepTimings.filter((s) => s.anchor).length} anchors${recording ? ', screen recording' : ''}`,
       );
       const composition = await selectComposition({
         serveUrl: bundleLocation,
         id: 'KineticDocs',
         inputProps: contentProps,
       });
+      const overlayFile = path.join(intermediateDir, `${locale}_${page.pageId}__overlay.webm`);
       await renderMedia({
         composition,
         serveUrl: bundleLocation,
-        outputLocation: contentFile,
+        outputLocation: recording ? overlayFile : contentFile,
         inputProps: contentProps,
         durationInFrames: schedule.totalFrames,
         ...renderOptions(renderConfig),
+        ...(recording ? { transparent: true } : {}),
       });
+      if (recording) {
+        const actionIds = new Set<string>(page.steps.filter((st) => st.type === 'action').map((st) => st.stepId));
+        console.log(`   🖥️  Compositing screen recording`);
+        await composeScreenLayer({
+          source: `${recordingBase}.webm`,
+          overlay: overlayFile,
+          outputFile: contentFile,
+          segments: planScreenSegments(schedule, recording.stepMs, actionIds, FPS),
+          fps: FPS,
+          width: WIDTH,
+          height: HEIGHT,
+          crf: renderConfig.crf,
+          x264Preset: renderConfig.x264Preset,
+        });
+        await fs.remove(overlayFile);
+      }
 
       if (hasIntroOutro) {
         const introFile = layerConfig.intro

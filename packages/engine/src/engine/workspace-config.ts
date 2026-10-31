@@ -67,6 +67,8 @@ const PathsSchema = z.object({
   public: z.string().optional(),
   /** Declarative knowledge sources (Markdown + YAML) — defaults to <engine>/content/knowledge */
   knowledge: z.string().optional(),
+  /** Authored user guides (Markdown, optional YAML frontmatter) — no default; unset means none */
+  guides: z.string().optional(),
 });
 
 const PluginsSchema = z.object({

@@ -24,25 +24,31 @@
  * KINETIC_GENERATED_DIR       — absolute path to generated/ directory (page route)
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
+import { workspace, dirs } from './lib/workspace.mjs';
+
+const ws = workspace as any;
+
 function env(key: string, fallback: string): string {
   return process.env[key] ?? fallback;
 }
 
 export const SITE = {
-  name: env('KINETIC_SITE_NAME', 'Kinetic Docs'),
+  name: env('KINETIC_SITE_NAME', ws.site?.name ?? 'Kinetic Docs'),
   description: env(
     'KINETIC_SITE_DESCRIPTION',
-    'Step-by-step product documentation with video walkthroughs.',
+    ws.site?.description ?? 'Step-by-step product documentation with video walkthroughs.',
   ),
-  favicon: env('KINETIC_FAVICON', '/assets/favicon.ico'),
+  favicon: env('KINETIC_FAVICON', ws.site?.favicon ?? '/assets/favicon.ico'),
   logo: env('KINETIC_LOGO', ''),
   supportUrl: env('KINETIC_SUPPORT_URL', ''),
 } as const;
 
 export const THEME = {
-  primary: env('KINETIC_COLOR_PRIMARY', '#2563eb'),
-  primaryLight: env('KINETIC_COLOR_PRIMARY_LIGHT', '#eff6ff'),
-  primaryMid: env('KINETIC_COLOR_PRIMARY_MID', '#bfdbfe'),
+  primary: env('KINETIC_COLOR_PRIMARY', ws.theme?.primary ?? '#2563eb'),
+  primaryLight: env('KINETIC_COLOR_PRIMARY_LIGHT', ws.theme?.primaryLight ?? '#eff6ff'),
+  primaryMid: env('KINETIC_COLOR_PRIMARY_MID', ws.theme?.primaryMid ?? '#bfdbfe'),
   bg: env('KINETIC_COLOR_BG', '#f8fafc'),
   surface: env('KINETIC_COLOR_SURFACE', '#ffffff'),
   sidebar: env('KINETIC_COLOR_SIDEBAR', '#ffffff'),
@@ -96,6 +102,7 @@ export const LOCALE_NAMES: Record<string, string> = process.env.KINETIC_LOCALE_N
 
 /** Interface chrome text. Page content stays in the engine's locale files; this is only UI labels. */
 const UI_EN = {
+  guides: 'User guides',
   howTo: 'How-to guides',
   tutorials: 'Tutorials',
   explanation: 'Explanation',
@@ -240,6 +247,13 @@ export function uiStrings(locale: string): UiStrings {
 }
 
 /** Root-relative site paths become page-relative; absolute URLs pass through unchanged. */
+/** The favicon link target, or '' when the configured file is not among the public assets (no broken link). */
+export function faviconHref(root: string): string {
+  const rel = SITE.favicon;
+  if (/^https?:/.test(rel)) return rel;
+  return fs.existsSync(path.join(dirs.public, rel.replace(/^\/+/, ''))) ? siteUrl(root, rel) : '';
+}
+
 export function siteUrl(root: string, url: string): string {
   return url.startsWith('/') && !url.startsWith('//') ? root + url.slice(1) : url;
 }

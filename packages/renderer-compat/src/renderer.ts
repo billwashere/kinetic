@@ -75,6 +75,8 @@ export interface RenderMediaOptions {
   frameTimeoutMs?: number;
   /** Whether to log progress to stdout. Default true. */
   logProgress?: boolean;
+  /** Render with a transparent background to a VP9 (alpha) file, to be composited by FFmpeg. Default false. */
+  transparent?: boolean;
 }
 
 export type { RenderCodec };
@@ -153,6 +155,7 @@ export async function renderMedia(opts: RenderMediaOptions): Promise<void> {
     concurrency = 4,
     frameTimeoutMs = 30_000,
     logProgress = true,
+    transparent = false,
   } = opts;
 
   // Fail fast if ffmpeg is missing — much better than discovering it after a 5-minute render.
@@ -262,7 +265,7 @@ export async function renderMedia(opts: RenderMediaOptions): Promise<void> {
               throw new Error(`Frame ${frame}: ${browserError}`);
             }
 
-            await page.screenshot({ path: framePath, type: 'png' });
+            await page.screenshot({ path: framePath, type: 'png', omitBackground: transparent });
 
             rendered++;
             if (rendered % fps === 0 || rendered === totalFrames) printProgress();
@@ -287,9 +290,10 @@ export async function renderMedia(opts: RenderMediaOptions): Promise<void> {
       framePattern: 'frame_%06d.png',
       outputLocation,
       fps,
-      codec,
+      codec: transparent ? 'vp9' : codec,
       crf,
       x264Preset,
+      alpha: transparent,
     });
   } finally {
     // Always clean up the temp frames directory, even on error

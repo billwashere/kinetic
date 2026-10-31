@@ -14,9 +14,14 @@ const testDir = resolvePath('tests', path.join(process.cwd(), 'e2e-tests'));
 
 export default defineConfig({
   testDir,
+  // A remote app is slower than a local dev server; raise these with KINETIC_TEST_TIMEOUT / KINETIC_EXPECT_TIMEOUT (ms).
+  timeout: Number(process.env.KINETIC_TEST_TIMEOUT) || 30_000,
+  expect: { timeout: Number(process.env.KINETIC_EXPECT_TIMEOUT) || 5_000 },
   globalSetup: path.join(testDir, 'global-setup.ts'),
   use: {
     baseURL: APP_URL,
+    // Signed-in session saved by the workspace's global-setup, when it saves one.
+    ...(process.env.KINETIC_STORAGE_STATE ? { storageState: process.env.KINETIC_STORAGE_STATE } : {}),
     video: { mode: 'on', size: { width: 1920, height: 1080 } },
     contextOptions: {
       recordVideo: {

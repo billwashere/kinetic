@@ -1,0 +1,17 @@
+.git
+.github
+**/node_modules
+**/dist
+.turbo
+**/.turbo
+packages/engine/.rc-bundle-cache
+packages/engine/public/audio-objects
+packages/engine/public/visual-cache
+packages/engine/public/video-cache
+packages/engine/.auth
+.env
+**/.env
+**/.env.local
+.DS_Store
+Dockerfile
+.dockerignore

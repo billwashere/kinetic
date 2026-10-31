@@ -1,4 +1,5 @@
 import type { Evidence } from './schema';
+import type { GuideMeta } from './guides';
 import type { NodeKind, Origin, RelationshipType, Verification } from './registry';
 
 export type Severity = 'error' | 'warning';
@@ -22,6 +23,8 @@ export interface ParsedNode {
   relationships: { type: string; target: string; evidence: Evidence[] }[];
   evidence: Evidence[];
   body: string;
+  /** Present on guides imported from a guides directory. */
+  guide?: GuideMeta;
 }
 
 /** Minimal views of existing pipeline artefacts — decoupled from doc-extractor / locale-schema. */
@@ -55,6 +58,8 @@ export interface GraphNode {
   aliases: string[];
   /** Present on derived procedures: the pageId used by the portal route. */
   pageId?: string;
+  /** Present on guides: Diátaxis type and the declared verification state. */
+  guide?: Pick<GuideMeta, 'docType' | 'categories' | 'appliesTo'> & { verification: string };
 }
 
 export interface GraphEdge {
