@@ -1,6 +1,6 @@
 import React from 'react';
 import { Audio, interpolate, useCurrentFrame } from '@kinetic/renderer-compat';
-import type { MusicConfig } from '../engine/layer-config';
+import type { MusicConfig } from '../engine/layer-config-schema';
 
 interface MusicLayerProps {
   music: MusicConfig;

@@ -25,7 +25,8 @@ import { resolvePath } from '../engine/workspace-config';
 const LOCALES_DIR = resolvePath('locales', path.join(process.cwd(), 'content/locales'));
 const PUBLIC_DIR = resolvePath('public', path.join(process.cwd(), 'public'));
 const GENERATED_DIR = resolvePath('generated', path.join(process.cwd(), 'generated'));
-import { planScreenSegments, composeScreenLayer } from '../lib/screen-layer';
+import { mixNarration, type NarrationCue } from '../lib/narration';
+import { planScreenSegments, composeScreenLayer, videoClockOffset } from '../lib/screen-layer';
 import type { RecordingTimings } from '../lib/doc-extractor';
 import { WIDTH, HEIGHT } from '../engine/render-config';
 import type { OutroProps } from '../components/OutroSlide';
@@ -35,6 +36,8 @@ dotenv.config();
 const VERSION = process.env.DOCS_VERSION || 'v1.0';
 // --no-screen renders the overlay-only video (no Playwright recording underneath).
 const noScreen = process.argv.includes('--no-screen');
+// --no-narration leaves the video silent.
+const noNarration = process.argv.includes('--no-narration');
 const ENTRY_POINT = path.join(process.cwd(), 'src/index.tsx');
 const BUNDLE_CACHE_PATH = path.join(process.cwd(), '.rc-bundle-cache');
 
@@ -67,10 +70,7 @@ async function getOrCreateBundle(): Promise<string> {
 }
 
 async function loadManifest(locale: string): Promise<AudioManifest | null> {
-  const p = path.join(
-    process.cwd(),
-    path.join(PUBLIC_DIR, `audio-manifest-${VERSION}-${locale}.json`),
-  );
+  const p = path.join(PUBLIC_DIR, `audio-manifest-${VERSION}-${locale}.json`);
   if (!(await fs.pathExists(p))) {
     console.warn(
       `⚠️  No audio manifest at ${p} — run "pnpm generate:audio" first. Durations fall back to 5s.`,
@@ -334,16 +334,18 @@ async function main(): Promise<void> {
           source: `${recordingBase}.webm`,
           overlay: overlayFile,
           outputFile: contentFile,
-          segments: planScreenSegments(schedule, recording.stepMs, actionIds, FPS),
+          segments: planScreenSegments(schedule, recording.stepMs, actionIds, FPS, videoClockOffset(recording), recording.videoSeconds),
           fps: FPS,
           width: WIDTH,
           height: HEIGHT,
+          crop: recording.viewport,
           crf: renderConfig.crf,
           x264Preset: renderConfig.x264Preset,
         });
-        await fs.remove(overlayFile);
+        if (!process.env.KINETIC_KEEP_INTERMEDIATE) await fs.remove(overlayFile);
       }
 
+      let introOffsetFrames = 0;
       if (hasIntroOutro) {
         const introFile = layerConfig.intro
           ? await ensureIntroRendered(
@@ -365,6 +367,7 @@ async function main(): Promise<void> {
         const outroFrames = outroFile
           ? secondsToFrames(layerConfig.outro!.durationSeconds, FPS)
           : 0;
+        introOffsetFrames = introFrames;
         const totalFrames = introFrames + schedule.totalFrames + outroFrames;
         const segments = [introFile, contentFile, outroFile].filter(Boolean) as string[];
 
@@ -397,6 +400,20 @@ async function main(): Promise<void> {
           generateWebVTT(schedule.subtitles, FPS),
           'utf8',
         );
+      }
+
+      if (!noNarration && manifest) {
+        const cues: NarrationCue[] = schedule.subtitles.flatMap((cue) => {
+          const entry = manifest[`${locale}_${page.pageId}_${cue.stepId}`];
+          return entry?.file
+            ? [{ file: path.join(PUBLIC_DIR, entry.file), startSeconds: (cue.startFrame + introOffsetFrames) / FPS }]
+            : [];
+        });
+        const videoFrames = introOffsetFrames + schedule.totalFrames + (hasIntroOutro && layerConfig.outro ? secondsToFrames(layerConfig.outro.durationSeconds, FPS) : 0);
+        if (cues.length > 0) {
+          console.log(`   🎙️  Mixing ${cues.length} narration clips`);
+          await mixNarration(finalOutputFile, cues, videoFrames / FPS);
+        }
       }
 
       await fs.writeFile(

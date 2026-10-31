@@ -9,9 +9,7 @@ import { z } from 'zod';
  * re-recording the Playwright screen capture at the new resolution, so they're a
  * code-level decision that applies to the whole project, not a per-run tuning knob.
  */
-export const FPS = 30;
-export const WIDTH = 1920;
-export const HEIGHT = 1080;
+export { FPS, WIDTH, HEIGHT } from './video-constants';
 
 // ─── Codec ───────────────────────────────────────────────────────────────────
 

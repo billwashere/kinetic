@@ -43,3 +43,64 @@ describe('buildScreenFilter', () => {
     expect(f).toContain('trim=start=3.000:end=3.033');
   });
 });
+
+import { plainText } from './timing-schedule';
+describe('plainText', () => {
+  it('strips Markdown markers from subtitle text', () => {
+    expect(plainText('Select **Next week** (the `right` arrow), see [docs](http://x).')).toBe(
+      'Select Next week (the right arrow), see docs.',
+    );
+  });
+});
+
+import { videoClockOffset } from './screen-layer';
+describe('video clock offset', () => {
+  it('is the gap between the step clock and the video length at the end', () => {
+    expect(videoClockOffset({ endMs: 10_000, videoSeconds: 7.6 })).toBeCloseTo(2.4);
+    expect(videoClockOffset({ endMs: 10_000 })).toBe(0);
+    expect(videoClockOffset({ syncMs: 5_000, videoSyncSeconds: 6.1, endMs: 1, videoSeconds: 99 })).toBeCloseTo(-1.1);
+  });
+  it('shifts step times and never starts past the last frame', () => {
+    const sched: PageTimingSchedule = { leadInFrames: 0, leadOutFrames: 0, totalFrames: 30, subtitles: [], stepTimings: [{ stepId: 'a', anchor: null, startFrame: 0, durationFrames: 30 }] };
+    const [seg] = planScreenSegments(sched, { a: 9_000 }, new Set(), 30, 2.4, 7.6);
+    expect(seg.srcStart).toBeCloseTo(6.3, 5);
+    const [late] = planScreenSegments(sched, { a: 99_000 }, new Set(), 30, 0, 7.6);
+    expect(late.srcStart).toBeCloseTo(7.4, 5);
+  });
+});
+
+import { buildNarrationFilter } from './narration';
+describe('buildNarrationFilter', () => {
+  it('delays each clip to its start and mixes them', () => {
+    const f = buildNarrationFilter([{ file: 'a.mp3', startSeconds: 4 }, { file: 'b.mp3', startSeconds: 11.25 }], false);
+    expect(f).toContain('[1:a]adelay=4000:all=1[n0]');
+    expect(f).toContain('[2:a]adelay=11250:all=1[n1]');
+    expect(f).toContain('[n0][n1]amix=inputs=2:normalize=0');
+    expect(f).toContain(',apad[a]');
+  });
+  it('keeps music already on the video', () => {
+    expect(buildNarrationFilter([{ file: 'a.mp3', startSeconds: 0 }], true)).toContain('[0:a][n0]amix=inputs=2');
+  });
+});
+
+describe('planScreenSegments play window', () => {
+  const sched: PageTimingSchedule = {
+    leadInFrames: 0, leadOutFrames: 0, totalFrames: 30 * 10,
+    subtitles: [],
+    stepTimings: [
+      { stepId: 'a', anchor: null, startFrame: 0, durationFrames: 30 * 7 },
+      { stepId: 'b', anchor: { x: 1, y: 1, width: 1, height: 1 }, startFrame: 30 * 7, durationFrames: 30 * 3 },
+    ],
+  };
+  it('stops a long narration at the next step instead of playing on into the next page', () => {
+    const [a, b] = planScreenSegments(sched, { a: 10_000, b: 10_800 }, new Set(['b']), 30);
+    expect(a.duration).toBeCloseTo(7);
+    expect(a.play).toBeCloseTo(10.8 - 0.1 - (10 - 0.3), 5);
+    expect(b.play).toBeUndefined();
+  });
+  it('uses only the play window in the filter', () => {
+    const f = buildScreenFilter([{ srcStart: 10, duration: 7, freeze: false, play: 0.8 }], 30, 1920, 1080);
+    expect(f).toContain('trim=start=10.000:end=10.800');
+    expect(f).toContain('tpad=stop_mode=clone:stop_duration=7.000');
+  });
+});

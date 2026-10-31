@@ -267,7 +267,10 @@ const RendererApp: React.FC = () => {
         durationInFrames: comp.durationInFrames,
       }}
     >
-      <Component {...(mergedProps as object)} />
+      {/* Full-bleed layers are 100% of their parent, so the root needs the composition's size. */}
+      <div style={{ position: 'relative', width: comp.width, height: comp.height, overflow: 'hidden' }}>
+        <Component {...(mergedProps as object)} />
+      </div>
     </FrameProvider>
   );
 };

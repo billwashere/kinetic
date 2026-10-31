@@ -47,6 +47,14 @@ export interface RecordingTimings {
   viewport: { width: number; height: number } | null;
   /** Milliseconds from page creation to each step (action: just before the click; assertion: once it held). */
   stepMs: Record<string, number>;
+  /** Milliseconds from page creation to the page closing (the recording ends then). */
+  endMs?: number;
+  /** Length of the saved video in seconds. With endMs this tells how far the video clock lags the step clock. */
+  videoSeconds?: number;
+  /** Milliseconds from page creation to the sync marker flash (see waitForSettled). */
+  syncMs?: number;
+  /** Where the marker flash appears in the saved video, in seconds. Exact clock alignment when both are set. */
+  videoSyncSeconds?: number;
 }
 
 export class DocStore {
@@ -80,6 +88,11 @@ export class DocStore {
     const video = page.video?.();
     if (video) this.videos[pageId] = video;
     this.timings[pageId].viewport = page.viewportSize?.() ?? null;
+    const flashed = syncFlashes.get(page);
+    if (flashed !== undefined) this.timings[pageId].syncMs = flashed - this.started[pageId];
+    page.once?.('close', () => {
+      this.timings[pageId].endMs = Date.now() - this.started[pageId];
+    });
   }
 
   getTimings(): Record<string, RecordingTimings> {
@@ -131,6 +144,56 @@ export class DocStore {
   }
 }
 
+// ─── Loading state ────────────────────────────────────────────────────────────
+
+/** CSS selector for "this part of the page is still loading". Override with KINETIC_LOADING_SELECTOR. */
+const LOADING_SELECTOR = process.env.KINETIC_LOADING_SELECTOR ?? '.animate-pulse, [aria-busy="true"]';
+
+/** When each page last showed the sync marker (wall clock ms). */
+const syncFlashes = new WeakMap<object, number>();
+
+/**
+ * Flashes a full-screen magenta frame once per page so assemble can find the exact moment in the
+ * screen recording. The recording's clock starts at its first painted frame, not at page creation, so
+ * step timestamps cannot be matched to it by arithmetic alone. Runs only after the page has settled,
+ * before any step is recorded, so the flash is never inside a cut.
+ */
+async function flashSyncMarker(page: any): Promise<void> {
+  if (syncFlashes.has(page)) return;
+  try {
+    syncFlashes.set(page, Date.now());
+    await page.evaluate(() => {
+      const d = document.createElement('div');
+      d.id = '__kinetic_sync';
+      d.style.cssText = 'position:fixed;inset:0;background:#ff00ff;z-index:2147483647';
+      document.body.appendChild(d);
+    });
+    await page.waitForTimeout(400);
+    await page.evaluate(() => document.getElementById('__kinetic_sync')?.remove());
+    await page.waitForTimeout(400);
+  } catch {
+    /* the marker is an aid; a page that cannot show it falls back to end-of-video alignment */
+  }
+}
+
+/**
+ * Waits until nothing on the page is in a loading state (skeletons, aria-busy), for two checks in a
+ * row so a skeleton that is about to be replaced does not slip through. Never throws: a page that
+ * never settles is recorded as it is rather than failing the spec.
+ */
+export async function waitForSettled(page: any, timeoutMs = Number(process.env.KINETIC_EXPECT_TIMEOUT) || 5000): Promise<void> {
+  const idle = () =>
+    page.waitForFunction((sel: string) => !document.querySelector(sel), LOADING_SELECTOR, { timeout: timeoutMs });
+  try {
+    await idle();
+    await page.waitForTimeout(300);
+    await idle();
+    await flashSyncMarker(page);
+  } catch {
+    /* still loading after the timeout: record the page anyway */
+  }
+}
+
 // ─── Convenience wrappers ─────────────────────────────────────────────────────
 
 export async function docStep(
@@ -141,6 +204,7 @@ export async function docStep(
   selector: string,
   textKey: string,
 ): Promise<void> {
+  await waitForSettled(page);
   const locator = page.locator(selector);
   await locator.waitFor({
     state: 'visible',
@@ -210,9 +274,57 @@ export async function flushDocs(store: DocStore): Promise<void> {
   );
   await fs.ensureDir(cacheDir);
   for (const [pageId, video] of Object.entries(store.getVideos())) {
-    await video.saveAs(path.join(cacheDir, `${pageId}.webm`));
+    const webm = path.join(cacheDir, `${pageId}.webm`);
+    await video.saveAs(webm);
+    store.getTimings()[pageId].videoSeconds = await probeSeconds(webm);
+    store.getTimings()[pageId].videoSyncSeconds = await findSyncMarker(webm, store.getTimings()[pageId].viewport);
     await fs.writeJson(path.join(cacheDir, `${pageId}.json`), store.getTimings()[pageId], {
       spaces: 2,
     });
   }
+}
+
+async function probeSeconds(file: string): Promise<number | undefined> {
+  try {
+    const { execa } = await import('execa');
+    const { stdout } = await execa('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0', file]);
+    const n = parseFloat(stdout.trim());
+    return Number.isFinite(n) ? n : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Seconds into the video of the first mostly-magenta frame (the sync marker), or undefined. Playwright
+ * records the viewport in the corner of a larger canvas, so crop to the viewport first.
+ */
+export async function findSyncMarker(
+  file: string,
+  viewport: { width: number; height: number } | null = null,
+): Promise<number | undefined> {
+  try {
+    const { execa } = await import('execa');
+    const fps = 20;
+    const w = 16;
+    const h = 9;
+    const { stdout } = await execa(
+      'ffmpeg',
+      ['-v', 'error', '-i', file, '-vf', `${viewport ? `crop=${viewport.width}:${viewport.height}:0:0,` : ''}fps=${fps},scale=${w}:${h}`, '-f', 'rawvideo', '-pix_fmt', 'rgb24', '-'],
+      { encoding: 'buffer' },
+    );
+    const frame = w * h * 3;
+    const buf = stdout as unknown as Buffer;
+    for (let i = 0; (i + 1) * frame <= buf.length; i++) {
+      let magenta = 0;
+      for (let p = 0; p < w * h; p++) {
+        const o = i * frame + p * 3;
+        if (buf[o] > 200 && buf[o + 1] < 80 && buf[o + 2] > 200) magenta++;
+      }
+      if (magenta > w * h * 0.8) return i / fps;
+    }
+  } catch {
+    /* fall through */
+  }
+  return undefined;
 }

@@ -21,6 +21,11 @@ export interface ScreenSegment {
   duration: number;
   /** Hold the single frame at srcStart instead of playing. */
   freeze: boolean;
+  /**
+   * Seconds of the recording to actually play from srcStart; the last frame is then held for the rest of
+   * `duration`. Keeps a long narration from running on into the next step's page. Defaults to `duration`.
+   */
+  play?: number;
 }
 
 /** Seconds of the recording shown before an action's click, so the viewer sees what is being clicked. */
@@ -28,19 +33,38 @@ export const ACTION_LEAD_SECONDS = 1.2;
 /** Seconds shown before an assertion held, so the result is on screen for its narration. */
 export const ASSERTION_LEAD_SECONDS = 0.3;
 
+/**
+ * The recording's clock starts at its first painted frame, not at page creation, so step times are
+ * shifted by the offset between the two clocks (negative when the video clock runs ahead).
+ */
+export function videoClockOffset(
+  t: Pick<RecordingTimings, 'endMs' | 'videoSeconds' | 'syncMs' | 'videoSyncSeconds'>,
+): number {
+  // Exact: the sync marker was flashed at syncMs and found at videoSyncSeconds in the recording.
+  if (t.syncMs !== undefined && t.videoSyncSeconds !== undefined) return t.syncMs / 1000 - t.videoSyncSeconds;
+  // Fallback: both clocks end when the page closes. Only ever moves the cut later in the recording.
+  if (t.endMs === undefined || t.videoSeconds === undefined) return 0;
+  return Math.max(0, t.endMs / 1000 - t.videoSeconds);
+}
+
 export function planScreenSegments(
   schedule: PageTimingSchedule,
   stepMs: RecordingTimings['stepMs'],
   actionStepIds: ReadonlySet<string>,
   fps: number,
+  /** Seconds the video clock lags the step clock (see videoClockOffset). */
+  offsetSec = 0,
+  /** Length of the recording; segments never start past its last frame. */
+  videoSeconds = Infinity,
 ): ScreenSegment[] {
   const timed = schedule.stepTimings.filter((s) => stepMs[s.stepId] !== undefined);
   if (timed.length === 0) return [];
 
   const segs: ScreenSegment[] = [];
+  const at = (stepId: string) => stepMs[stepId] / 1000 - offsetSec;
   const startOf = (stepId: string) => {
     const lead = actionStepIds.has(stepId) ? ACTION_LEAD_SECONDS : ASSERTION_LEAD_SECONDS;
-    return Math.max(0, stepMs[stepId] / 1000 - lead);
+    return Math.min(Math.max(0, stepMs[stepId] / 1000 - offsetSec - lead), Math.max(0, videoSeconds - 0.2));
   };
 
   // Frames not covered by a step (lead-in, steps with no recorded time) show the nearest timed step's frame.
@@ -53,7 +77,12 @@ export function planScreenSegments(
       cursor += gap;
     }
     if (stepMs[t.stepId] !== undefined) lastSrc = startOf(t.stepId);
-    segs.push({ srcStart: lastSrc, duration: t.durationFrames / fps, freeze: stepMs[t.stepId] === undefined });
+    // Play only until the next recorded step happens (the spec moves on within a second or two, while
+    // the narration for this step may last many seconds): the rest holds the last frame.
+    const next = schedule.stepTimings.slice(schedule.stepTimings.indexOf(t) + 1).find((n) => stepMs[n.stepId] !== undefined);
+    const play =
+      stepMs[t.stepId] !== undefined && next ? Math.max(0.2, at(next.stepId) - 0.1 - lastSrc) : undefined;
+    segs.push({ srcStart: lastSrc, duration: t.durationFrames / fps, freeze: stepMs[t.stepId] === undefined, play });
     cursor += t.durationFrames;
   }
   const tail = schedule.totalFrames - cursor;
@@ -62,11 +91,19 @@ export function planScreenSegments(
 }
 
 /** The ffmpeg filter graph that cuts, pads and joins the segments, then overlays the transparent layer. */
-export function buildScreenFilter(segments: ScreenSegment[], fps: number, width: number, height: number): string {
+export function buildScreenFilter(
+  segments: ScreenSegment[],
+  fps: number,
+  width: number,
+  height: number,
+  crop?: { width: number; height: number } | null,
+): string {
+  // Playwright records the viewport in the corner of a larger canvas; keep only the viewport.
+  const cropFilter = crop ? `crop=${crop.width}:${crop.height}:0:0,` : '';
   const parts = segments.map((s, i) => {
-    const end = s.freeze ? s.srcStart + 1 / fps : s.srcStart + s.duration;
+    const end = s.freeze ? s.srcStart + 1 / fps : s.srcStart + Math.min(s.duration, s.play ?? s.duration);
     return (
-      `[0:v]trim=start=${s.srcStart.toFixed(3)}:end=${end.toFixed(3)},setpts=PTS-STARTPTS,` +
+      `[0:v]trim=start=${s.srcStart.toFixed(3)}:end=${end.toFixed(3)},setpts=PTS-STARTPTS,${cropFilter}` +
       `fps=${fps},scale=${width}:${height}:force_original_aspect_ratio=decrease,` +
       `pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=0x0f172a,setsar=1,` +
       `tpad=stop_mode=clone:stop_duration=${s.duration.toFixed(3)},trim=duration=${s.duration.toFixed(3)},` +
@@ -86,13 +123,15 @@ export interface ComposeScreenOptions {
   fps: number;
   width: number;
   height: number;
+  /** The recorded viewport, cropped out of the video canvas before scaling. */
+  crop?: { width: number; height: number } | null;
   crf: number;
   x264Preset: string;
 }
 
 export async function composeScreenLayer(o: ComposeScreenOptions): Promise<void> {
   const script = `${o.outputFile}.filter.txt`;
-  await fs.writeFile(script, buildScreenFilter(o.segments, o.fps, o.width, o.height), 'utf8');
+  await fs.writeFile(script, buildScreenFilter(o.segments, o.fps, o.width, o.height, o.crop), 'utf8');
   try {
     await execa(
       'ffmpeg',

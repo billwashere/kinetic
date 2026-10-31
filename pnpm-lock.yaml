@@ -80,6 +80,12 @@ importers:
       openai:
         specifier: ^7.46.0
         version: 7.46.0(zod@4.4.3)
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+      react-dom:
+        specifier: ^18.3.1
+        version: 18.3.1(react@18.3.1)
       yaml:
         specifier: ^2.9.1
         version: 2.9.1
