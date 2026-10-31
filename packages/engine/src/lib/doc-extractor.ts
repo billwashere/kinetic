@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
+import { resolvePath } from '../engine/workspace-config';
 
 const VERSION = process.env.DOCS_VERSION || 'v1.0';
 
@@ -138,7 +139,11 @@ export function docNote(store: DocStore, pageId: string, noteId: string, textKey
 // ─── flushDocs ────────────────────────────────────────────────────────────────
 
 export async function flushDocs(store: DocStore): Promise<void> {
-  const outPath = path.join(process.cwd(), 'generated', VERSION, 'extracted-skeleton.json');
+  const outPath = path.join(
+    resolvePath('generated', path.join(process.cwd(), 'generated')),
+    VERSION,
+    'extracted-skeleton.json',
+  );
   await fs.ensureDir(path.dirname(outPath));
 
   let existing: DocPage[] = [];
