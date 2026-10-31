@@ -6,6 +6,7 @@ import {
   themeStyleTag,
   uiStrings,
   siteUrl,
+  faviconHref,
   type UiStrings,
 } from '../config';
 import fs from 'fs-extra';
@@ -52,7 +53,7 @@ export interface NavPage {
 
 export interface Section {
   /** Diátaxis quadrant; the label comes from the UI strings. */
-  key: 'howTo' | 'tutorials' | 'explanation';
+  key: 'guides' | 'howTo' | 'tutorials' | 'explanation';
   url: string;
   active: boolean;
 }
@@ -114,7 +115,7 @@ const {
 
 const ui: UiStrings = uiStrings(currentLocale);
 const metaDescription = description ?? SITE.description;
-const favicon = siteUrl(root, SITE.favicon);
+const favicon = faviconHref(root);
 const logo = SITE.logo ? siteUrl(root, SITE.logo) : '';
 const activeSection = sections.find((s) => s.active);
 
@@ -142,7 +143,7 @@ const Chevron = ChevronRight;
     <meta property="og:title" content={`${title} | ${SITE.name}`} />
     <meta property="og:description" content={metaDescription} />
     <meta property="og:type" content="article" />
-    <link rel="icon" href={favicon} sizes="any" />
+    {favicon && <link rel="icon" href={favicon} sizes="any" />}
     <title>{title} | {SITE.name}</title>
 
     <!-- Apply the saved or OS colour scheme before first paint to avoid a light flash. -->

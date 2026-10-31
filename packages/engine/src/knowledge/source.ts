@@ -88,7 +88,8 @@ export async function loadSources(paths: SourcePaths): Promise<LoadedKnowledge> 
   if (await fs.pathExists(skeletonPath)) skeleton = await fs.readJson(skeletonPath);
   else
     loadDiagnostics.push({
-      severity: 'error',
+      // A guides-only site has no recorded walkthroughs, so there is nothing to extract.
+      severity: paths.guidesDir ? 'warning' : 'error',
       code: 'missing-skeleton',
       message: `no skeleton at ${path.relative(paths.repoRoot, skeletonPath)} — run "pnpm test:docs" or set DOCS_VERSION`,
     });

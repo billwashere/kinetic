@@ -132,6 +132,9 @@ export function listFiles(dir: string): string[] {
   return walk(dir);
 }
 
+const SITE_REDIRECT =
+  '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=site/"><title>Documentation</title></head><body><a href="site/">Continue to the documentation</a></body></html>\n';
+
 export async function buildRelease(
   input: BuildReleaseInput,
 ): Promise<{ manifest: Manifest; dir: string }> {
@@ -146,7 +149,13 @@ export async function buildRelease(
   }
   staged.set('explorer/lib/search.js', transpileBrowserModule(path.join(here, 'search.ts')));
   staged.set('explorer/lib/query.js', transpileBrowserModule(path.join(here, 'query.ts')));
-  staged.set('index.html', fs.readFileSync(path.join(here, 'explorer', 'landing.html')));
+  // With a portal the release root forwards to its home page; without one, the bare landing page stays.
+  staged.set(
+    'index.html',
+    input.siteDir
+      ? SITE_REDIRECT
+      : fs.readFileSync(path.join(here, 'explorer', 'landing.html')),
+  );
 
   if (input.siteDir) {
     for (const rel of walk(input.siteDir)) {

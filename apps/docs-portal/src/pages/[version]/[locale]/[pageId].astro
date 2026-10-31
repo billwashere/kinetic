@@ -1,5 +1,6 @@
 ---
 import fs from 'fs-extra';
+import { dirs } from '../../../lib/workspace.mjs';
 import path from 'path';
 import { marked } from 'marked';
 import DocLayout from '../../../layouts/DocLayout.astro';
@@ -7,7 +8,7 @@ import KineticPlayer from '../../../components/KineticPlayer.tsx';
 import PageInject from '../../../plugins/PageInject.astro';
 import RelatedKnowledge from '../../../components/RelatedKnowledge.astro';
 import KnowledgeExplorer from '../../../components/KnowledgeExplorer.tsx';
-import { loadKnowledge, relatedFor, searchEntriesFor } from '../../../lib/knowledge';
+import { loadKnowledge, relatedFor, searchEntriesFor, guidesFor } from '../../../lib/knowledge';
 import { SITE, uiStrings } from '../../../config';
 import {
   ArrowRight,
@@ -34,12 +35,12 @@ export async function getStaticPaths() {
     explorerPath ? `${ROOT}${explorerPath}${id ? `#${encodeURIComponent(id)}` : ''}` : null;
 
   const generatedDir =
-    process.env.KINETIC_GENERATED_DIR ?? path.resolve('../../packages/engine/generated');
+    dirs.generated;
   if (!fs.existsSync(generatedDir)) return [];
 
   const versions = await fs.readdir(generatedDir);
   const localesDir =
-    process.env.KINETIC_LOCALES_DIR ?? path.resolve('../../packages/engine/content/locales');
+    dirs.locales;
   const locales = (await fs.readdir(localesDir))
     .filter((f: string) => f.endsWith('.json'))
     .map((f: string) => path.basename(f, '.json'));
@@ -58,7 +59,7 @@ export async function getStaticPaths() {
 
   const knowledge = loadKnowledge();
   // Only reference media that was actually rendered, so pages never show a broken player.
-  const publicDir = process.env.KINETIC_PUBLIC_DIR ?? path.resolve('../../packages/engine/public');
+  const publicDir = dirs.public;
   const media = (rel: string) =>
     fs.existsSync(path.join(publicDir, rel)) ? `${ROOT}${rel}` : null;
   const plain = (md: string) => md.replace(/\*\*|__|[*_`]/g, '').trim();
@@ -81,6 +82,12 @@ export async function getStaticPaths() {
       const lang = localeData.locale ?? locale;
       const pageUrl = (id: string) => `${ROOT}${version}/${locale}/${id}/`;
 
+      const guideList =
+        knowledge && knowledge.docsVersion === version ? guidesFor(knowledge, locale) : [];
+      const guidesUrl = guideList.length
+        ? `${ROOT}${version}/${locale}/guides/${guideList[0].slug}/`
+        : null;
+
       const allNav = skeleton.map((p: any) => {
         const crumbs: string[] = localeData.pages[p.pageId]?.breadcrumbs ?? [];
         return {
@@ -101,8 +108,16 @@ export async function getStaticPaths() {
           summary: plain(n.description),
           kind: 'guide',
         })),
+        ...guideList.map((g) => ({
+          url: `${ROOT}${version}/${locale}/guides/${g.slug}/`,
+          title: g.title,
+          summary: g.summary,
+          kind: 'guide',
+        })),
         ...(knowledge && knowledge.docsVersion === version
-          ? searchEntriesFor(knowledge, locale, (id) => explorerUrl(id))
+          ? searchEntriesFor(knowledge, locale, (id) => explorerUrl(id)).filter(
+              (e) => e.kind !== 'guide',
+            )
           : []),
       ];
 
@@ -115,6 +130,7 @@ export async function getStaticPaths() {
           .map((key) => ({ key, first: allNav.find((n: any) => n.section === key) }))
           .filter((s) => s.first)
           .map((s) => ({ key: s.key, url: s.first!.url, active: s.key === section }));
+        if (guidesUrl) sections.unshift({ key: 'guides' as any, url: guidesUrl, active: false });
         if (knowledge && explorerUrl()) {
           sections.push({ key: 'explanation' as any, url: explorerUrl()!, active: false });
         }
