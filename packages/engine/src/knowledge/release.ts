@@ -111,6 +111,8 @@ export interface BuildReleaseInput {
   textSources: Record<string, Record<string, { titleFrom: string }>>;
   /** Optional Astro (or other static) build output, copied under `site/`. */
   siteDir?: string;
+  /** Site name and accent colour, published for the explorer so it matches the docs site. */
+  branding?: { name: string; primary: string };
   /** Record unrendered media referenced by the site instead of failing verification. */
   declareMissingMedia?: boolean;
   outDir: string;
@@ -147,6 +149,7 @@ export async function buildRelease(
   for (const f of ['index.html', 'explorer.js', 'explorer.css']) {
     staged.set(`explorer/${f}`, fs.readFileSync(path.join(here, 'explorer', f)));
   }
+  if (input.branding) staged.set('explorer/branding.json', JSON.stringify(input.branding, null, 2) + '\n');
   staged.set('explorer/lib/search.js', transpileBrowserModule(path.join(here, 'search.ts')));
   staged.set('explorer/lib/query.js', transpileBrowserModule(path.join(here, 'query.ts')));
   // With a portal the release root forwards to its home page; without one, the bare landing page stays.

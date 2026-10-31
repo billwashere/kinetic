@@ -79,6 +79,7 @@ export async function getStaticPaths() {
           versionUrls,
           allVersions: versions,
           allLocales: locales,
+          localeUrls: Object.fromEntries(locales.map((l) => [l, `${ROOT}${version}/${l}/guides/${g.slug}/`])),
           dir: localeData.dir ?? 'ltr',
           lang: localeData.locale ?? locale,
           prevPage: menuItems[i - 1] ? { url: menuItems[i - 1].url, title: menuItems[i - 1].title } : null,
@@ -91,7 +92,7 @@ export async function getStaticPaths() {
 }
 
 const { version, locale } = Astro.params;
-const { guide, html, headings, sections, menuItems, searchEntries, versionUrls, allVersions, allLocales, dir, lang, prevPage, nextPage } =
+const { guide, html, headings, sections, menuItems, searchEntries, versionUrls, allVersions, allLocales, localeUrls, dir, lang, prevPage, nextPage } =
   Astro.props;
 const ui = uiStrings(locale!);
 const badge = 'rounded-full border border-slate-300 px-2.5 py-0.5 text-xs font-medium text-slate-700 dark:border-slate-700 dark:text-slate-300';
@@ -111,6 +112,7 @@ const verificationLabel: Record<string, string> = {
   currentVersion={version!}
   versionUrls={versionUrls}
   allLocales={allLocales}
+  localeUrls={localeUrls}
   currentLocale={locale!}
   menuItems={menuItems}
   currentPageId={guide.id}

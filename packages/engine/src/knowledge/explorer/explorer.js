@@ -29,7 +29,15 @@ async function loadLocale(code) {
   }
 }
 
-const textOf = (id) => state.content[state.locale].nodes[id] ?? { title: id, summary: '' };
+const plain = (md) =>
+  md
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__|[*_`])/g, '')
+    .trim();
+const textOf = (id) => {
+  const t = state.content[state.locale].nodes[id] ?? { title: id, summary: '' };
+  return { ...t, summary: plain(t.summary) };
+};
 const nodeHref = (id) => `#${encodeURIComponent(id)}`;
 
 function applyLocale() {
@@ -85,8 +93,19 @@ function renderNode(id) {
     el('h2', { textContent: t.title }),
     el('p', { className: 'meta', textContent: `${id} · ${n.origin}` }),
     el('p', { textContent: t.summary }),
-    ...(nodeContent.nodes[id] ? renderBody(nodeContent.nodes[id].body) : []),
+    ...(nodeContent.nodes[id] && n.kind !== 'guide' ? renderBody(nodeContent.nodes[id].body) : []),
   ];
+
+  // A guide is a page in the docs site; link to it rather than printing its Markdown here.
+  if (n.kind === 'guide' && manifest.capabilities.includes('docs-site')) {
+    out.push(
+      el('a', {
+        className: 'open-doc',
+        href: `../site/${manifest.docsVersion}/${state.locale}/guides/${id.slice(id.indexOf(':') + 1)}/`,
+        textContent: 'Read the guide',
+      }),
+    );
+  }
 
   if (n.pageId && manifest.capabilities.includes('docs-site')) {
     out.push(
@@ -95,6 +114,7 @@ function renderNode(id) {
         {},
         el('a', {
           href: `../site/${manifest.docsVersion}/${state.locale}/${n.pageId}/`,
+          className: 'open-doc',
           textContent: 'Open the documentation page',
         }),
       ),
@@ -192,6 +212,57 @@ function route() {
   if (id) renderNode(id);
 }
 
+const languageName = (code) => {
+  try {
+    return new Intl.DisplayNames([code], { type: 'language' }).of(code) ?? code;
+  } catch {
+    return code;
+  }
+};
+
+/** Site name, accent colour and the section tabs, so this page matches the docs site around it. */
+async function applyBranding() {
+  let b = {};
+  try {
+    b = await getJson('branding.json');
+  } catch {
+    /* a release without branding keeps the neutral defaults */
+  }
+  if (b.name) {
+    $('site-name').textContent = b.name;
+    document.title = `Explanation | ${b.name}`;
+  }
+  if (b.primary) document.documentElement.style.setProperty('--primary', b.primary);
+  if (!manifest.capabilities.includes('docs-site')) return;
+  $('brand').href = '../site/';
+  const tabs = [
+    ['Walkthroughs', '../site/#walkthroughs'],
+    ['User guides', '../site/#guides'],
+    ['Explanation', './'],
+  ];
+  $('tabs').replaceChildren(
+    ...tabs.map(([label, href]) =>
+      el('a', { href, textContent: label, ...(label === 'Explanation' ? { 'aria-current': 'page' } : {}) }),
+    ),
+  );
+  $('tabs').hidden = false;
+}
+
+function setupTheme() {
+  const btn = $('theme');
+  const sync = () => btn.setAttribute('aria-pressed', String(document.documentElement.classList.contains('dark')));
+  sync();
+  btn.addEventListener('click', () => {
+    const dark = document.documentElement.classList.toggle('dark');
+    try {
+      localStorage.setItem('kinetic-theme', dark ? 'dark' : 'light');
+    } catch {
+      /* ignore */
+    }
+    sync();
+  });
+}
+
 async function init() {
   [manifest, registry, nodes, edges, nodeContent] = await Promise.all([
     getJson('../manifest.json'),
@@ -202,22 +273,37 @@ async function init() {
   ]);
   nodes.forEach((n) => byId.set(n.id, n));
   $('release').textContent = `Release ${manifest.releaseId}`;
+  await applyBranding();
+  setupTheme();
 
   const sel = $('locale');
   for (const l of manifest.locales)
     sel.append(
       el('option', {
         value: l.code,
-        textContent: `${l.code}${l.support === 'partial' ? ' (partial)' : ''}`,
+        textContent: `${languageName(l.code)}${l.support === 'partial' ? ' (partial)' : ''}`,
       }),
     );
-  state.locale = manifest.defaultLocale;
+  // The language is one choice for the whole site, remembered by every page (portal home and pages too).
+  let stored = null;
+  try {
+    stored = localStorage.getItem('kinetic-locale');
+  } catch {
+    /* storage blocked */
+  }
+  state.locale = manifest.locales.some((l) => l.code === stored) ? stored : manifest.defaultLocale;
+  sel.disabled = manifest.locales.length < 2;
   sel.value = state.locale;
   await loadLocale(state.locale);
   applyLocale();
 
   sel.addEventListener('change', async () => {
     state.locale = sel.value;
+    try {
+      localStorage.setItem('kinetic-locale', state.locale);
+    } catch {
+      /* ignore */
+    }
     await loadLocale(state.locale);
     applyLocale();
     renderResults(search(state.index[state.locale], $('q').value));

@@ -1,0 +1,63 @@
+---
+/**
+ * The site-wide language control. One per page header (portal pages and home); the explorer has its own
+ * copy of the same behaviour. The choice is remembered in localStorage ("kinetic-locale") and applied on
+ * every page, so it is global rather than per page. With one language it is shown but disabled, so the
+ * place for it is consistent and people can see what the docs are written in.
+ */
+import { LOCALE_NAMES } from '../config';
+
+interface Props {
+  /** Locale code → URL of this same page in that locale. */
+  urls: Record<string, string>;
+  current: string;
+  label: string;
+}
+const { urls, current, label } = Astro.props;
+const locales = Object.keys(urls);
+---
+
+<div class="flex items-center">
+  <label for="lang-select" class="sr-only">{label}</label>
+  <select
+    id="lang-select"
+    data-current={current}
+    disabled={locales.length < 2}
+    title={locales.length < 2 ? `${LOCALE_NAMES[current] ?? current} (no other languages yet)` : label}
+    class="max-w-[8rem] rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm font-medium text-slate-700 disabled:opacity-70 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 k-focus"
+  >
+    {
+      locales.map((l) => (
+        <option value={urls[l]} data-locale={l} selected={l === current}>
+          {LOCALE_NAMES[l] ?? l}
+        </option>
+      ))
+    }
+  </select>
+</div>
+
+<script>
+  const KEY = 'kinetic-locale';
+  const sel = document.getElementById('lang-select') as HTMLSelectElement | null;
+  if (sel) {
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(KEY);
+    } catch {
+      /* storage blocked: the page's own language stands */
+    }
+    if (stored && stored !== sel.dataset.current) {
+      const option = Array.from(sel.options).find((o) => o.dataset.locale === stored);
+      if (option) location.replace(option.value);
+    }
+    sel.addEventListener('change', () => {
+      const option = sel.selectedOptions[0];
+      try {
+        localStorage.setItem(KEY, option.dataset.locale ?? '');
+      } catch {
+        /* ignore */
+      }
+      location.href = option.value;
+    });
+  }
+</script>

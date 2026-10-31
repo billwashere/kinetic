@@ -3,12 +3,22 @@ import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import { buildKnowledge, defaultPaths } from '../knowledge/source';
 import { formatDiagnostic, hasErrors } from '../knowledge/model';
+import { loadWorkspaceConfig } from '../engine/workspace-config';
 import { buildRelease } from '../knowledge/release';
 import { packageOffline } from '../knowledge/package';
 import { promote } from '../knowledge/cdn';
 import { verifyReleaseDir, verifyZip } from '../knowledge/verify';
 
 dotenv.config();
+
+/** Site name and accent from the workspace config (env overrides match the portal's). */
+function brand() {
+  const { config } = loadWorkspaceConfig();
+  return {
+    name: process.env.KINETIC_SITE_NAME ?? config.site.name,
+    primary: process.env.KINETIC_COLOR_PRIMARY ?? config.theme.primary,
+  };
+}
 
 /**
  * One validated build, several delivery modes:
@@ -48,6 +58,7 @@ async function main(): Promise<void> {
     authoredIds: graph.nodes.filter((n) => n.origin === 'authored').map((n) => n.id),
     textSources: text,
     siteDir,
+    branding: brand(),
     declareMissingMedia: args.includes('--declare-missing-media'),
     outDir,
   });
