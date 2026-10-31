@@ -106,7 +106,10 @@ export async function docStep(
   textKey: string,
 ): Promise<void> {
   const locator = page.locator(selector);
-  await locator.waitFor({ state: 'visible', timeout: 5000 });
+  await locator.waitFor({
+    state: 'visible',
+    timeout: Number(process.env.KINETIC_EXPECT_TIMEOUT) || 5000,
+  });
   const box = await locator.boundingBox();
   store.recordStep(pageId, stepId, textKey, box);
   if (box) await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);

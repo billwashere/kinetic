@@ -62,5 +62,176 @@
         "textKey": "note_key"
       }
     ]
+  },
+  {
+    "pageId": "transactions_list",
+    "steps": [
+      {
+        "type": "assertion",
+        "stepId": "list_loaded",
+        "textKey": "transactions_list_loaded"
+      },
+      {
+        "type": "action",
+        "stepId": "open_type_filter",
+        "textKey": "transactions_filter_type",
+        "anchor": {
+          "x": 730.328125,
+          "y": 363.5,
+          "width": 86.09375,
+          "height": 36
+        }
+      },
+      {
+        "type": "assertion",
+        "stepId": "filter_applied",
+        "textKey": "transactions_filter_applied"
+      },
+      {
+        "type": "note",
+        "stepId": "new_button_note",
+        "textKey": "click_new_transaction"
+      },
+      {
+        "type": "action",
+        "stepId": "click_new",
+        "textKey": "click_new_transaction",
+        "anchor": {
+          "x": 1063.265625,
+          "y": 277.5,
+          "width": 160.734375,
+          "height": 36
+        }
+      }
+    ]
+  },
+  {
+    "pageId": "transaction_new",
+    "steps": [
+      {
+        "type": "assertion",
+        "stepId": "picker_loaded",
+        "textKey": "transaction_type_picker_loaded"
+      },
+      {
+        "type": "action",
+        "stepId": "select_sinv",
+        "textKey": "select_sales_invoice",
+        "anchor": {
+          "x": 24,
+          "y": 1264.5,
+          "width": 378,
+          "height": 74
+        }
+      },
+      {
+        "type": "assertion",
+        "stepId": "sinv_form_visible",
+        "textKey": "sinv_form_loaded"
+      }
+    ]
+  },
+  {
+    "pageId": "parties_list",
+    "steps": [
+      {
+        "type": "assertion",
+        "stepId": "parties_list_visible",
+        "textKey": "parties_list_loaded"
+      },
+      {
+        "type": "action",
+        "stepId": "click_search",
+        "textKey": "parties_search",
+        "anchor": {
+          "x": 53,
+          "y": 370.5,
+          "width": 304.75,
+          "height": 36
+        }
+      },
+      {
+        "type": "action",
+        "stepId": "click_first_row",
+        "textKey": "click_party_row",
+        "anchor": {
+          "x": 25,
+          "y": 503.5,
+          "width": 4686.296875,
+          "height": 33
+        }
+      },
+      {
+        "type": "assertion",
+        "stepId": "party_detail_open",
+        "textKey": "party_detail_loaded"
+      }
+    ]
+  },
+  {
+    "pageId": "opportunities_list",
+    "steps": [
+      {
+        "type": "assertion",
+        "stepId": "page_loaded",
+        "textKey": "opportunities_page_loaded"
+      },
+      {
+        "type": "action",
+        "stepId": "switch_to_list_view",
+        "textKey": "opportunities_list_view",
+        "anchor": {
+          "x": 1013.609375,
+          "y": 175.75,
+          "width": 44.359375,
+          "height": 32
+        }
+      },
+      {
+        "type": "assertion",
+        "stepId": "won_opportunity_visible",
+        "textKey": "veridian_won_row"
+      },
+      {
+        "type": "assertion",
+        "stepId": "followon_opportunity_visible",
+        "textKey": "veridian_phase2_row"
+      },
+      {
+        "type": "note",
+        "stepId": "followon_note",
+        "textKey": "veridian_phase2_row"
+      }
+    ]
+  },
+  {
+    "pageId": "opportunities_kanban",
+    "steps": [
+      {
+        "type": "assertion",
+        "stepId": "kanban_loaded",
+        "textKey": "opportunities_kanban_loaded"
+      }
+    ]
+  },
+  {
+    "pageId": "settings_accounts",
+    "steps": [
+      {
+        "type": "assertion",
+        "stepId": "accounts_loaded",
+        "textKey": "accounts_list_loaded"
+      }
+    ]
+  },
+  {
+    "pageId": "timesheets",
+    "steps": [
+      {
+        "type": "assertion",
+        "stepId": "grid_loaded",
+        "textKey": "timesheet_grid_loaded"
+      }
+    ]
   }
 ]
