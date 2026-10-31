@@ -61,6 +61,15 @@ export interface KineticVideoProps {
   screenLayer?: boolean;
 }
 
+/** Subtitles are plain text: drop Markdown emphasis/code markers and flatten links to their label. */
+export function plainText(md: string): string {
+  return md
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+    .replace(/(\*\*|__|[*_`])/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 // ─── Schedule builder ─────────────────────────────────────────────────────────
 
 /**
@@ -119,7 +128,7 @@ export function buildPageTimingSchedule(
 
     subtitles.push({
       stepId: step.stepId,
-      text: entry.text,
+      text: plainText(entry.text),
       startFrame: currentFrame,
       durationFrames,
     });

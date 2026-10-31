@@ -43,3 +43,12 @@ describe('buildScreenFilter', () => {
     expect(f).toContain('trim=start=3.000:end=3.033');
   });
 });
+
+import { plainText } from './timing-schedule';
+describe('plainText', () => {
+  it('strips Markdown markers from subtitle text', () => {
+    expect(plainText('Select **Next week** (the `right` arrow), see [docs](http://x).')).toBe(
+      'Select Next week (the right arrow), see docs.',
+    );
+  });
+});
