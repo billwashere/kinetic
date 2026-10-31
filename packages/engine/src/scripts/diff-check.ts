@@ -32,7 +32,7 @@ import type { DocPage } from '../lib/doc-extractor';
 
 dotenv.config();
 
-const LOCALES_DIR = resolvePath('locales', LOCALES_DIR);
+const LOCALES_DIR = resolvePath('locales', path.join(process.cwd(), 'content/locales'));
 const PUBLIC_DIR = resolvePath('public', path.join(process.cwd(), 'public'));
 const GENERATED_DIR = resolvePath('generated', path.join(process.cwd(), 'generated'));
 

@@ -57,6 +57,8 @@ export interface KineticVideoProps {
   leadInFrames: number;
   leadOutFrames: number;
   layerConfig: LayerConfig;
+  /** Render only the overlay on a transparent background; assemble.ts composites it over the screen recording. */
+  screenLayer?: boolean;
 }
 
 // ─── Schedule builder ─────────────────────────────────────────────────────────

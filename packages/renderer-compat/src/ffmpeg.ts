@@ -54,6 +54,8 @@ export interface EncodeOptions {
   crf: number;
   /** Encoding speed preset (h264/h265 only). */
   x264Preset?: string;
+  /** Keep the alpha channel (VP9 only; the output is a transparent overlay for FFmpeg to composite). */
+  alpha?: boolean;
 }
 
 /**
@@ -71,7 +73,10 @@ export async function encodeFramesToVideo(opts: EncodeOptions): Promise<void> {
     path.join(opts.framesDir, opts.framePattern),
   ];
 
-  if (opts.codec === 'h264' || opts.codec === 'h265') {
+  if (opts.alpha) {
+    if (opts.codec !== 'vp9') throw new Error('alpha output needs codec vp9');
+    args.push('-c:v', vcodec, '-crf', String(opts.crf), '-b:v', '0', '-pix_fmt', 'yuva420p', '-auto-alt-ref', '0');
+  } else if (opts.codec === 'h264' || opts.codec === 'h265') {
     args.push(
       '-c:v', vcodec,
       '-crf', String(opts.crf),

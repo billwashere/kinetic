@@ -33,22 +33,24 @@ export const KineticVideo: React.FC<KineticVideoProps> = ({
   leadInFrames,
   leadOutFrames,
   layerConfig,
+  screenLayer,
 }) => {
   const { durationInFrames } = useVideoConfig();
 
   return (
-    <AbsoluteFill style={{ backgroundColor: '#0f172a' }}>
+    <AbsoluteFill style={{ backgroundColor: screenLayer ? 'transparent' : '#0f172a' }}>
       {/* ── Layer 1: Screen recording placeholder ─────────────────────────────
-          In production, replace this with a <Video> component pointing at the
-          Playwright-captured webm from public/visual-cache/<version>/.
-          The webm path arrives via inputProps when this layer is implemented.  */}
-      <AbsoluteFill
-        style={{ backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center' }}
-      >
-        <p style={{ color: '#475569', fontSize: 28, fontFamily: 'monospace' }}>
-          [ Screen recording layer ]
-        </p>
-      </AbsoluteFill>
+          The recording itself is not drawn here: with `screenLayer` set, this composition is rendered
+          transparent and assemble.ts overlays it on the Playwright webm with FFmpeg (screen-layer.ts). */}
+      {!screenLayer && (
+        <AbsoluteFill
+          style={{ backgroundColor: '#1e293b', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <p style={{ color: '#475569', fontSize: 28, fontFamily: 'monospace' }}>
+            [ Screen recording layer ]
+          </p>
+        </AbsoluteFill>
+      )}
 
       {/* ── Layer 2: Background music ─────────────────────────────────────────
           When intro/outro is configured, music is added post-stitch as a single
