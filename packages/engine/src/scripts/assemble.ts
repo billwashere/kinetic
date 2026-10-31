@@ -25,6 +25,7 @@ import { resolvePath } from '../engine/workspace-config';
 const LOCALES_DIR = resolvePath('locales', path.join(process.cwd(), 'content/locales'));
 const PUBLIC_DIR = resolvePath('public', path.join(process.cwd(), 'public'));
 const GENERATED_DIR = resolvePath('generated', path.join(process.cwd(), 'generated'));
+import { mixNarration, type NarrationCue } from '../lib/narration';
 import { planScreenSegments, composeScreenLayer, videoClockOffset } from '../lib/screen-layer';
 import type { RecordingTimings } from '../lib/doc-extractor';
 import { WIDTH, HEIGHT } from '../engine/render-config';
@@ -35,6 +36,8 @@ dotenv.config();
 const VERSION = process.env.DOCS_VERSION || 'v1.0';
 // --no-screen renders the overlay-only video (no Playwright recording underneath).
 const noScreen = process.argv.includes('--no-screen');
+// --no-narration leaves the video silent.
+const noNarration = process.argv.includes('--no-narration');
 const ENTRY_POINT = path.join(process.cwd(), 'src/index.tsx');
 const BUNDLE_CACHE_PATH = path.join(process.cwd(), '.rc-bundle-cache');
 
@@ -342,6 +345,7 @@ async function main(): Promise<void> {
         if (!process.env.KINETIC_KEEP_INTERMEDIATE) await fs.remove(overlayFile);
       }
 
+      let introOffsetFrames = 0;
       if (hasIntroOutro) {
         const introFile = layerConfig.intro
           ? await ensureIntroRendered(
@@ -363,6 +367,7 @@ async function main(): Promise<void> {
         const outroFrames = outroFile
           ? secondsToFrames(layerConfig.outro!.durationSeconds, FPS)
           : 0;
+        introOffsetFrames = introFrames;
         const totalFrames = introFrames + schedule.totalFrames + outroFrames;
         const segments = [introFile, contentFile, outroFile].filter(Boolean) as string[];
 
@@ -395,6 +400,20 @@ async function main(): Promise<void> {
           generateWebVTT(schedule.subtitles, FPS),
           'utf8',
         );
+      }
+
+      if (!noNarration && manifest) {
+        const cues: NarrationCue[] = schedule.subtitles.flatMap((cue) => {
+          const entry = manifest[`${locale}_${page.pageId}_${cue.stepId}`];
+          return entry?.file
+            ? [{ file: path.join(PUBLIC_DIR, entry.file), startSeconds: (cue.startFrame + introOffsetFrames) / FPS }]
+            : [];
+        });
+        const videoFrames = introOffsetFrames + schedule.totalFrames + (hasIntroOutro && layerConfig.outro ? secondsToFrames(layerConfig.outro.durationSeconds, FPS) : 0);
+        if (cues.length > 0) {
+          console.log(`   🎙️  Mixing ${cues.length} narration clips`);
+          await mixNarration(finalOutputFile, cues, videoFrames / FPS);
+        }
       }
 
       await fs.writeFile(
