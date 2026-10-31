@@ -29,10 +29,15 @@ export const ACTION_LEAD_SECONDS = 1.2;
 export const ASSERTION_LEAD_SECONDS = 0.3;
 
 /**
- * The recording's clock starts at its first frame, which on a slow server is later than the spec's
- * clock; both clocks end when the page closes, so the lag is the gap between those two durations.
+ * The recording's clock starts at its first painted frame, not at page creation, so step times are
+ * shifted by the offset between the two clocks (negative when the video clock runs ahead).
  */
-export function videoClockOffset(t: Pick<RecordingTimings, 'endMs' | 'videoSeconds'>): number {
+export function videoClockOffset(
+  t: Pick<RecordingTimings, 'endMs' | 'videoSeconds' | 'syncMs' | 'videoSyncSeconds'>,
+): number {
+  // Exact: the sync marker was flashed at syncMs and found at videoSyncSeconds in the recording.
+  if (t.syncMs !== undefined && t.videoSyncSeconds !== undefined) return t.syncMs / 1000 - t.videoSyncSeconds;
+  // Fallback: both clocks end when the page closes. Only ever moves the cut later in the recording.
   if (t.endMs === undefined || t.videoSeconds === undefined) return 0;
   return Math.max(0, t.endMs / 1000 - t.videoSeconds);
 }

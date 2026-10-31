@@ -58,6 +58,7 @@ describe('video clock offset', () => {
   it('is the gap between the step clock and the video length at the end', () => {
     expect(videoClockOffset({ endMs: 10_000, videoSeconds: 7.6 })).toBeCloseTo(2.4);
     expect(videoClockOffset({ endMs: 10_000 })).toBe(0);
+    expect(videoClockOffset({ syncMs: 5_000, videoSyncSeconds: 6.1, endMs: 1, videoSeconds: 99 })).toBeCloseTo(-1.1);
   });
   it('shifts step times and never starts past the last frame', () => {
     const sched: PageTimingSchedule = { leadInFrames: 0, leadOutFrames: 0, totalFrames: 30, subtitles: [], stepTimings: [{ stepId: 'a', anchor: null, startFrame: 0, durationFrames: 30 }] };
