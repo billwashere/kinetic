@@ -1,0 +1,26 @@
+---
+import { FileText } from 'lucide-react';
+
+interface Props {
+  url: string;
+  title: string;
+  current: boolean;
+}
+const { url, title, current } = Astro.props;
+---
+
+<li data-nav-item>
+  <a
+    href={url}
+    aria-current={current ? 'page' : undefined}
+    class={
+      'flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm transition-colors k-focus ' +
+      (current
+        ? 'k-bg-primary-light k-text-primary font-medium'
+        : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white')
+    }
+  >
+    <FileText className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+    <span data-nav-title>{title}</span>
+  </a>
+</li>

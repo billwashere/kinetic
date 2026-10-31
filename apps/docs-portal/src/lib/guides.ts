@@ -27,12 +27,21 @@ export function headingSlug(text: string): string {
     .replace(/\s/g, '-');
 }
 
+/** First declared category; guides with none are grouped by their document type instead of a vague "Other". */
 export function primaryCategory(g: GuideItem): string {
-  return g.categories[0] ?? 'other';
+  return g.categories[0] ?? `type:${g.docType}`;
 }
 
+const TYPE_GROUP_LABELS: Record<string, string> = {
+  tutorial: 'Tutorials',
+  'how-to': 'More how-to guides',
+  explanation: 'Explanations',
+  reference: 'Reference',
+};
+
 export function categoryLabel(c: string): string {
-  return CATEGORY_LABELS[c] ?? 'Other guides';
+  if (c.startsWith('type:')) return TYPE_GROUP_LABELS[c.slice(5)] ?? 'More guides';
+  return CATEGORY_LABELS[c] ?? 'More guides';
 }
 
 /** Guides grouped by first category, in a fixed category order, titles sorted within. */
@@ -42,7 +51,7 @@ export function groupGuides(guides: GuideItem[]): { category: string; label: str
     const c = primaryCategory(g);
     map.set(c, [...(map.get(c) ?? []), g]);
   }
-  const rank = (c: string) => (CATEGORY_ORDER.includes(c) ? CATEGORY_ORDER.indexOf(c) : 99);
+  const rank = (c: string) => (CATEGORY_ORDER.includes(c) ? CATEGORY_ORDER.indexOf(c) : 99 + c.length);
   return [...map.entries()]
     .sort((a, b) => rank(a[0]) - rank(b[0]))
     .map(([category, gs]) => ({ category, label: categoryLabel(category), guides: gs }));

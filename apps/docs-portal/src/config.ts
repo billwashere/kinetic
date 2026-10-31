@@ -104,6 +104,9 @@ export const LOCALE_NAMES: Record<string, string> = process.env.KINETIC_LOCALE_N
 const UI_EN = {
   guides: 'User guides',
   walkthroughs: 'Walkthroughs',
+  filterPages: 'Filter pages',
+  expandAll: 'Expand all',
+  collapseAll: 'Collapse all',
   walkthroughsBlurb: 'short step-by-step videos',
   walkthroughsIntro: 'Watch a task being done, with each step written out underneath.',
   guidesBlurb: 'written guides by topic',
@@ -111,7 +114,7 @@ const UI_EN = {
   explanationBlurb: 'Search the concepts and how they connect',
   video: 'Video',
   steps: 'Steps',
-  howTo: 'How-to guides',
+  howTo: 'Walkthroughs',
   tutorials: 'Tutorials',
   explanation: 'Explanation',
   search: 'Search documentation',
