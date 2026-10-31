@@ -80,6 +80,14 @@ export function renderGuide(body: string, knownSlugs: Set<string>): { html: stri
     if (depth === 2 || depth === 3) headings.push({ depth, id, text: text.replace(/<[^>]+>/g, '') });
     return `<h${depth} id="${id}">${text}</h${depth}>\n`;
   };
+  // Mermaid fences become a box the page draws the diagram into (guide-diagrams script); the source stays in
+  // the box as readable text until then, and when scripts are off.
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const defaultCode = renderer.code.bind(renderer);
+  renderer.code = (code: string, infostring: string | undefined, escaped: boolean) =>
+    (infostring ?? '').trim().split(/\s+/)[0] === 'mermaid'
+      ? `<figure class="k-diagram not-prose"><div class="k-diagram-box" data-source="${esc(code)}"><pre><code>${esc(code)}</code></pre></div></figure>\n`
+      : defaultCode(code, infostring, escaped);
   renderer.link = (href: string, title: string | null | undefined, text: string) => {
     const url = href ?? '';
     const external = /^https?:/.test(url);
