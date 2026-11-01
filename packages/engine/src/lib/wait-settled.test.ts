@@ -24,3 +24,20 @@ describe('waitForSettled', () => {
     await expect(waitForSettled(fakePage(99), 10)).resolves.toBeUndefined();
   });
 });
+
+import { stableBox } from './doc-extractor';
+describe('stableBox', () => {
+  const box = (y: number) => ({ x: 5, y, width: 100, height: 20 });
+  it('returns the box once it has stopped moving, not the first one measured', async () => {
+    const ys = [100, 100, 220, 220, 220, 220, 220, 220];
+    let i = 0;
+    const locator = { boundingBox: vi.fn(async () => box(ys[Math.min(i++, ys.length - 1)])) };
+    const page = { waitForTimeout: vi.fn(async () => {}) };
+    const got = await stableBox(locator, page, 1, 2000);
+    expect(got?.y).toBe(220);
+  });
+  it('returns null at once for a hidden element', async () => {
+    const locator = { boundingBox: vi.fn(async () => null) };
+    expect(await stableBox(locator, { waitForTimeout: async () => {} }, 1, 2000)).toBeNull();
+  });
+});
