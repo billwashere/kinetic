@@ -194,6 +194,37 @@ export async function waitForSettled(page: any, timeoutMs = Number(process.env.K
   }
 }
 
+/**
+ * The element's box once it has stopped moving. Pages keep laying out after they look loaded (stat cards and
+ * toolbars appearing push content down), and the video shows the highlight for a second or more before the
+ * click, so the box must hold still for at least that long or the spotlight lands on the wrong element.
+ */
+export async function stableBox(
+  locator: any,
+  page: any,
+  quietMs = Number(process.env.KINETIC_STABLE_MS) || 1300,
+  timeoutMs = Number(process.env.KINETIC_EXPECT_TIMEOUT) || 5000,
+): Promise<{ x: number; y: number; width: number; height: number } | null> {
+  const same = (a: any, b: any) =>
+    !!a && !!b && ['x', 'y', 'width', 'height'].every((k) => Math.abs(a[k] - b[k]) < 1);
+  const deadline = Date.now() + timeoutMs;
+  let last = await locator.boundingBox();
+  if (!last) return null; // off-screen or hidden: nothing to wait for
+  let since = Date.now();
+  while (Date.now() < deadline) {
+    await page.waitForTimeout(100);
+    const now = await locator.boundingBox();
+    if (!now) return null;
+    if (same(last, now)) {
+      if (Date.now() - since >= quietMs) return now;
+    } else {
+      last = now;
+      since = Date.now();
+    }
+  }
+  return last;
+}
+
 // ─── Convenience wrappers ─────────────────────────────────────────────────────
 
 export async function docStep(
@@ -210,7 +241,7 @@ export async function docStep(
     state: 'visible',
     timeout: Number(process.env.KINETIC_EXPECT_TIMEOUT) || 5000,
   });
-  const box = await locator.boundingBox();
+  const box = await stableBox(locator, page);
   store.recordStep(pageId, stepId, textKey, box);
   store.attachPage(pageId, page);
   store.markTime(pageId, stepId);

@@ -37,6 +37,15 @@ export const ASSERTION_LEAD_SECONDS = 0.3;
  * The recording's clock starts at its first painted frame, not at page creation, so step times are
  * shifted by the offset between the two clocks (negative when the video clock runs ahead).
  */
+/** How long the spec shows the sync marker (flashSyncMarker) plus a margin; no clip may start inside it. */
+export const SYNC_MARKER_SECONDS = 0.4;
+export const SYNC_MARKER_MARGIN = 0.15;
+
+/** The earliest second of the recording a clip may start at, so the marker flash is never shown. */
+export function firstSafeSecond(t: Pick<RecordingTimings, 'videoSyncSeconds'>): number {
+  return t.videoSyncSeconds === undefined ? 0 : t.videoSyncSeconds + SYNC_MARKER_SECONDS + SYNC_MARKER_MARGIN;
+}
+
 export function videoClockOffset(
   t: Pick<RecordingTimings, 'endMs' | 'videoSeconds' | 'syncMs' | 'videoSyncSeconds'>,
 ): number {
@@ -56,6 +65,8 @@ export function planScreenSegments(
   offsetSec = 0,
   /** Length of the recording; segments never start past its last frame. */
   videoSeconds = Infinity,
+  /** No segment starts before this second of the recording (the end of the sync marker flash). */
+  notBefore = 0,
 ): ScreenSegment[] {
   const timed = schedule.stepTimings.filter((s) => stepMs[s.stepId] !== undefined);
   if (timed.length === 0) return [];
@@ -64,7 +75,8 @@ export function planScreenSegments(
   const at = (stepId: string) => stepMs[stepId] / 1000 - offsetSec;
   const startOf = (stepId: string) => {
     const lead = actionStepIds.has(stepId) ? ACTION_LEAD_SECONDS : ASSERTION_LEAD_SECONDS;
-    return Math.min(Math.max(0, stepMs[stepId] / 1000 - offsetSec - lead), Math.max(0, videoSeconds - 0.2));
+    const wanted = Math.max(notBefore, stepMs[stepId] / 1000 - offsetSec - lead);
+    return Math.min(Math.max(0, wanted), Math.max(0, videoSeconds - 0.2));
   };
 
   // Frames not covered by a step (lead-in, steps with no recorded time) show the nearest timed step's frame.

@@ -104,3 +104,15 @@ describe('planScreenSegments play window', () => {
     expect(f).toContain('tpad=stop_mode=clone:stop_duration=7.000');
   });
 });
+
+import { firstSafeSecond } from './screen-layer';
+describe('sync marker never shown', () => {
+  it('starts no clip before the end of the marker flash', () => {
+    const sched: PageTimingSchedule = { leadInFrames: 0, leadOutFrames: 0, totalFrames: 60, subtitles: [], stepTimings: [{ stepId: 'a', anchor: null, startFrame: 0, durationFrames: 60 }] };
+    const safe = firstSafeSecond({ videoSyncSeconds: 5 });
+    expect(safe).toBeCloseTo(5.55);
+    const [seg] = planScreenSegments(sched, { a: 5_700 }, new Set(['a']), 30, 0, 30, safe);
+    expect(seg.srcStart).toBeGreaterThanOrEqual(5.55);
+    expect(firstSafeSecond({})).toBe(0);
+  });
+});

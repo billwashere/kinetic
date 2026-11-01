@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { beforeAll, afterAll, describe, it, expect, beforeEach, vi } from 'vitest';
 import { DocStore, docStep, docAssert, flushDocs } from './doc-extractor';
 import fs from 'fs-extra';
 import path from 'path';
@@ -190,6 +190,12 @@ describe('DocStore', () => {
 // We don't need a real browser — we just need to verify the store is populated
 // correctly and that the page interactions are called with the right arguments.
 describe('docStep — happy path', () => {
+  beforeAll(() => {
+    process.env.KINETIC_STABLE_MS = '1';
+  });
+  afterAll(() => {
+    delete process.env.KINETIC_STABLE_MS;
+  });
   function makeMockPage(box = { x: 50, y: 100, width: 200, height: 40 }) {
     const click = vi.fn().mockResolvedValue(undefined);
     const move = vi.fn().mockResolvedValue(undefined);
@@ -200,6 +206,7 @@ describe('docStep — happy path', () => {
     const page = {
       locator: vi.fn().mockReturnValue(locator),
       mouse: { move },
+      waitForTimeout: vi.fn().mockResolvedValue(undefined),
     };
     return { page, locator, move, click };
   }
