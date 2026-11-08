@@ -11,7 +11,7 @@ import {
 } from '../config';
 import fs from 'fs-extra';
 import LanguageSelect from '../components/LanguageSelect.astro';
-import NavLink from '../components/NavLink.astro';
+import NavGroup from '../components/NavGroup.astro';
 import path from 'path';
 import {
   BookOpen,
@@ -51,6 +51,8 @@ export interface NavPage {
   group: string;
   /** breadcrumbs[1] — collapsible area within the group, if any. */
   subgroup: string | null;
+  /** Top-level menu section (Walkthroughs, User guides…); one menu holds every section on every page. */
+  section?: string;
 }
 
 export interface Section {
@@ -127,27 +129,35 @@ const favicon = faviconHref(root);
 const logo = SITE.logo ? siteUrl(root, SITE.logo) : '';
 const activeSection = sections.find((s) => s.active);
 
-// Sidebar tree: group (breadcrumbs[0]) → subgroup (breadcrumbs[1]) → pages, in skeleton order.
+// One menu for the whole site: section (Walkthroughs, User guides…) → group (category or breadcrumbs[0]) →
+// optional subgroup (breadcrumbs[1]) → pages. Every page gets the same menu; the section holding the
+// current page opens, the rest stay closed unless the whole menu is small enough to show at once.
 type Subgroup = { name: string | null; pages: NavPage[]; current: boolean };
-const groups: { name: string; subgroups: Subgroup[] }[] = [];
+type Group = { name: string; subgroups: Subgroup[] };
+const sectionList: { name: string; groups: Group[] }[] = [];
 for (const item of menuItems) {
-  let g = groups.find((x) => x.name === item.group);
-  if (!g) groups.push((g = { name: item.group, subgroups: [] }));
+  const secName = item.section ?? '';
+  let sec = sectionList.find((x) => x.name === secName);
+  if (!sec) sectionList.push((sec = { name: secName, groups: [] }));
+  let g = sec.groups.find((x) => x.name === item.group);
+  if (!g) sec.groups.push((g = { name: item.group, subgroups: [] }));
   let sg = g.subgroups.find((x) => x.name === item.subgroup);
   if (!sg) g.subgroups.push((sg = { name: item.subgroup, pages: [], current: false }));
   sg.pages.push(item);
   if (item.id === currentPageId) sg.current = true;
 }
-// Each group collapses: the group holding the current page is open, the rest are closed, unless the
-// whole menu is small enough to show at once. The reader's own open/close choices are remembered.
-const navGroups = groups.map((g) => ({
-  ...g,
-  count: g.subgroups.reduce((n, sg) => n + sg.pages.length, 0),
-  current: g.subgroups.some((sg) => sg.current || sg.pages.some((p) => p.id === currentPageId)),
-}));
-const navTotal = navGroups.reduce((n, g) => n + g.count, 0);
-const showAll = navGroups.length <= 1 || navTotal <= 8;
-const navKey = sections.find((x) => x.active)?.key ?? 'nav';
+const navView = sectionList.map((sec) => {
+  const groups = sec.groups.map((g) => ({
+    ...g,
+    key: `${sec.name}/${g.name}`,
+    count: g.subgroups.reduce((n, sg) => n + sg.pages.length, 0),
+    current: g.subgroups.some((sg) => sg.current || sg.pages.some((p) => p.id === currentPageId)),
+  }));
+  return { name: sec.name, groups, count: groups.reduce((n, g) => n + g.count, 0), current: groups.some((g) => g.current) };
+});
+const navTotal = navView.reduce((n, sec) => n + sec.count, 0);
+const showAll = navTotal <= 8;
+const explanation = sections.find((x) => x.key === 'explanation');
 // Breadcrumb separators point in reading direction via rtl:rotate-180.
 const Chevron = ChevronRight;
 ---
@@ -350,7 +360,7 @@ const Chevron = ChevronRight;
       >
         <nav
           id="side-nav"
-          data-key={navKey}
+          data-key="nav"
           class="flex-1 overflow-y-auto px-4 pb-6"
           aria-label={ui.pagesNav}
         >
@@ -374,46 +384,42 @@ const Chevron = ChevronRight;
             )
           }
           {
-            navGroups.map((g) => (
-              <details
-                class="nav-group group mb-1"
-                data-nav-group={g.name}
-                data-current={g.current ? 'true' : undefined}
-                open={g.current || showAll}
-              >
-                {g.name && (
-                  <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 k-focus">
-                    <span class="flex-1">{g.name}</span>
-                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium normal-case tracking-normal text-slate-600 dark:bg-slate-800 dark:text-slate-300">{g.count}</span>
+            navView.map((sec) =>
+              sec.name ? (
+                <details
+                  class="nav-section group mb-2"
+                  data-nav-section={sec.name}
+                  data-current={sec.current ? 'true' : undefined}
+                  open={sec.current || showAll}
+                >
+                  <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800 k-focus">
+                    <span class="flex-1">{sec.name}</span>
+                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">{sec.count}</span>
                     <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" aria-hidden="true" />
                   </summary>
-                )}
-                <ul class="mt-0.5 space-y-0.5">
-                  {g.subgroups.map((sg) =>
-                    sg.name ? (
-                      <li data-nav-sub>
-                        <details open={sg.current} class="group">
-                          <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 k-focus">
-                            <Folder className="h-4 w-4 flex-shrink-0 text-slate-500 dark:text-slate-400" aria-hidden="true" />
-                            <span class="flex-1">{sg.name}</span>
-                            <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" aria-hidden="true" />
-                          </summary>
-                          <ul class="mt-0.5 space-y-0.5 ps-4">
-                            {sg.pages.map((item) => (
-                              <NavLink url={item.url} title={item.title} current={item.id === currentPageId} />
-                            ))}
-                          </ul>
-                        </details>
-                      </li>
-                    ) : (
-                      sg.pages.map((item) => (
-                        <NavLink url={item.url} title={item.title} current={item.id === currentPageId} />
-                      ))
-                    ),
-                  )}
-                </ul>
-              </details>
-            ))
+                  <div class="ms-3 mt-1 border-s border-slate-200 ps-2 dark:border-slate-800">
+                    {sec.groups.map((g) => (
+                      <NavGroup navKey={g.key} name={g.name} count={g.count} open={g.current || showAll} current={g.current} currentPageId={currentPageId} subgroups={g.subgroups} />
+                    ))}
+                  </div>
+                </details>
+              ) : (
+                sec.groups.map((g) => (
+                  <NavGroup navKey={g.key} name={g.name} count={g.count} open={g.current || showAll} current={g.current} currentPageId={currentPageId} subgroups={g.subgroups} />
+                ))
+              ),
+            )
+          }
+          {
+            explanation && (
+              <a
+                href={explanation.url}
+                class="mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800 k-focus"
+              >
+                <BookOpen className="h-4 w-4 flex-shrink-0 k-text-primary" aria-hidden="true" />
+                <span>{ui.explanation}</span>
+              </a>
+            )
           }
 
           <!-- Plugin injection point: external links, notices -->
@@ -582,12 +588,15 @@ const Chevron = ChevronRight;
     <script>
       import { buildSearchIndex, search } from '../../../../packages/engine/src/knowledge/search';
 
-      // ── Side menu: filter, expand/collapse, remembered open groups ──
+      // ── Side menu: filter, expand/collapse, remembered open sections and groups ──
       (function sideNav() {
         const nav = document.getElementById('side-nav');
         if (!nav) return;
+        const sections = Array.from(nav.querySelectorAll<HTMLDetailsElement>('details.nav-section'));
         const groups = Array.from(nav.querySelectorAll<HTMLDetailsElement>('details.nav-group'));
-        const storeKey = `kinetic-nav:${nav.dataset.key}`;
+        const all = [...sections, ...groups];
+        const keyOf = (d: HTMLDetailsElement) => d.dataset.navSection ?? d.dataset.navGroup ?? '';
+        const storeKey = 'kinetic-nav';
         let saved: Record<string, boolean> = {};
         try {
           saved = JSON.parse(sessionStorage.getItem(storeKey) ?? '{}');
@@ -596,28 +605,28 @@ const Chevron = ChevronRight;
         }
         const save = () => {
           const state: Record<string, boolean> = {};
-          for (const g of groups) state[g.dataset.navGroup ?? ''] = g.open;
+          for (const d of all) state[keyOf(d)] = d.open;
           try {
             sessionStorage.setItem(storeKey, JSON.stringify(state));
           } catch {
             /* ignore */
           }
         };
-        // Reader's earlier choices, except the group holding this page always stays open.
-        for (const g of groups) {
-          const name = g.dataset.navGroup ?? '';
-          if (name in saved && !g.dataset.current) g.open = saved[name];
+        // Reader's earlier choices, except whatever holds this page always stays open.
+        for (const d of all) {
+          const k = keyOf(d);
+          if (k in saved && !d.dataset.current) d.open = saved[k];
         }
         let filtering = false;
         let before: Record<string, boolean> | null = null;
-        for (const g of groups) g.addEventListener('toggle', () => !filtering && save());
+        for (const d of all) d.addEventListener('toggle', () => !filtering && save());
 
         const input = document.getElementById('nav-filter') as HTMLInputElement | null;
         const empty = document.getElementById('nav-empty');
         input?.addEventListener('input', () => {
           const q = input.value.trim().toLowerCase();
-          // Remember how the groups were before filtering so clearing the filter puts them back.
-          if (q && !before) before = Object.fromEntries(groups.map((g) => [g.dataset.navGroup ?? '', g.open]));
+          // Remember how things were before filtering so clearing the filter puts them back.
+          if (q && !before) before = Object.fromEntries(all.map((d) => [keyOf(d), d.open]));
           filtering = true;
           let any = false;
           for (const g of groups) {
@@ -636,19 +645,24 @@ const Chevron = ChevronRight;
             if (q && hits > 0) g.open = true;
             if (hits > 0) any = true;
           }
+          for (const sec of sections) {
+            const visible = sec.querySelector('details.nav-group:not([hidden])') !== null;
+            sec.hidden = !visible;
+            if (q && visible) sec.open = true;
+          }
           if (empty) empty.hidden = any || !q;
           if (!q && before) {
-            for (const g of groups) g.open = !!g.dataset.current || before[g.dataset.navGroup ?? ''];
+            for (const d of all) d.open = !!d.dataset.current || before[keyOf(d)];
             before = null;
           }
           filtering = false;
         });
         document.getElementById('nav-expand')?.addEventListener('click', () => {
-          for (const g of groups) g.open = true;
+          for (const d of all) d.open = true;
           save();
         });
         document.getElementById('nav-collapse')?.addEventListener('click', () => {
-          for (const g of groups) g.open = !!g.dataset.current;
+          for (const d of all) d.open = !!d.dataset.current;
           save();
         });
       })();

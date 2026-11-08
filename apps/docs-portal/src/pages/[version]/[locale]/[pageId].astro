@@ -8,6 +8,7 @@ import KineticPlayer from '../../../components/KineticPlayer.tsx';
 import PageInject from '../../../plugins/PageInject.astro';
 import RelatedKnowledge from '../../../components/RelatedKnowledge.astro';
 import KnowledgeExplorer from '../../../components/KnowledgeExplorer.tsx';
+import { guideNavEntries } from '../../../lib/nav';
 import { loadKnowledge, relatedFor, searchEntriesFor, guidesFor } from '../../../lib/knowledge';
 import { SITE, uiStrings } from '../../../config';
 import {
@@ -130,7 +131,7 @@ export async function getStaticPaths() {
           .map((key) => ({ key, first: allNav.find((n: any) => n.section === key) }))
           .filter((s) => s.first)
           .map((s) => ({ key: s.key, url: s.first!.url, active: s.key === section }));
-        if (guidesUrl) sections.unshift({ key: 'guides' as any, url: guidesUrl, active: false });
+        if (guidesUrl) sections.push({ key: 'guides' as any, url: guidesUrl, active: false });
         if (knowledge && explorerUrl()) {
           sections.push({ key: 'explanation' as any, url: explorerUrl()!, active: false });
         }
@@ -242,7 +243,10 @@ export async function getStaticPaths() {
             allVersions: versions,
             versionUrls,
             allLocales: locales,
-            menuItems: allNav.filter((n: any) => n.section === section),
+            menuItems: [
+              ...allNav.map((n: any) => ({ ...n, section: n.section === 'tutorials' ? ui.tutorials : ui.walkthroughs })),
+              ...guideNavEntries(guideList, (slug) => `${ROOT}${version}/${locale}/guides/${slug}/`, ui.guides),
+            ],
             prevPage: prevSkeleton
               ? {
                   url: pageUrl(prevSkeleton.pageId),
