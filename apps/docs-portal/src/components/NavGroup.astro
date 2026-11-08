@@ -1,0 +1,57 @@
+---
+import { ChevronDown, Folder } from 'lucide-react';
+import NavLink from './NavLink.astro';
+
+interface Item {
+  id: string;
+  title: string;
+  url: string;
+}
+interface Props {
+  /** Unique key (section/group) used to remember whether the reader opened it. */
+  navKey: string;
+  name: string;
+  count: number;
+  open: boolean;
+  current: boolean;
+  currentPageId: string;
+  subgroups: { name: string | null; pages: Item[]; current: boolean }[];
+}
+const { navKey, name, count, open, current, currentPageId, subgroups } = Astro.props;
+---
+
+<details class="nav-group group mb-1" data-nav-group={navKey} data-current={current ? 'true' : undefined} open={open}>
+  {
+    name && (
+      <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800 k-focus">
+        <span class="flex-1">{name}</span>
+        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-medium normal-case tracking-normal text-slate-600 dark:bg-slate-800 dark:text-slate-300">{count}</span>
+        <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" aria-hidden="true" />
+      </summary>
+    )
+  }
+  <ul class="mt-0.5 space-y-0.5">
+    {
+      subgroups.map((sg) =>
+        sg.name && sg.pages.length > 1 ? (
+          <li data-nav-sub>
+            <details open={sg.current} class="group">
+              <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-800 k-focus">
+                <Folder className="h-4 w-4 flex-shrink-0 text-slate-500 dark:text-slate-400" aria-hidden="true" />
+                <span class="flex-1">{sg.name}</span>
+                <ChevronDown className="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" aria-hidden="true" />
+              </summary>
+              <ul class="mt-0.5 space-y-0.5 ps-4">
+                {sg.pages.map((item) => (
+                  <NavLink url={item.url} title={item.title} current={item.id === currentPageId} />
+                ))}
+              </ul>
+            </details>
+          </li>
+        ) : (
+          sg.pages.map((item) => <NavLink url={item.url} title={item.title} current={item.id === currentPageId} />)
+        ),
+      )
+    }
+  </ul>
+</details>

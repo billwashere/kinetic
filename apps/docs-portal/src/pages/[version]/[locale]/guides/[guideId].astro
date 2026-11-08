@@ -12,6 +12,7 @@ import {
   primaryCategory,
 } from '../../../../lib/guides';
 import { uiStrings } from '../../../../config';
+import { guideNavEntries, walkthroughNavEntries } from '../../../../lib/nav';
 
 // Emitted as <version>/<locale>/guides/<slug>/index.html: the site root is four levels up.
 const ROOT = '../../../../';
@@ -48,24 +49,27 @@ export async function getStaticPaths() {
     const guides = guidesFor(knowledge, locale);
     const slugs = new Set(guides.map((g) => g.slug));
     const url = (slug: string) => `${ROOT}${version}/${locale}/guides/${slug}/`;
-    const menuItems = groupGuides(guides).flatMap((grp) =>
-      grp.guides.map((g) => ({ id: g.id, title: g.title, url: url(g.slug), group: grp.label, subgroup: null })),
-    );
+    const labels = uiStrings(locale);
+    const guideEntries = guideNavEntries(guides, url, labels.guides);
+    const walkEntries = await walkthroughNavEntries(version, locale, (id) => `${ROOT}${version}/${locale}/${id}/`, labels.walkthroughs);
+    // One menu on every page: walkthroughs first, then the guides (the same order as the header and home).
+    const menuItems = [...walkEntries, ...guideEntries];
     const searchEntries = [
       ...guides.map((g) => ({ url: url(g.slug), title: g.title, summary: g.summary, kind: 'guide' })),
       ...searchEntriesFor(knowledge, locale, explorerUrl).filter((e) => e.kind !== 'guide'),
     ];
     const versionUrls: Record<string, string> = {};
     for (const v of versions) {
-      versionUrls[v] = v === version ? (menuItems[0]?.url ?? ROOT) : `${ROOT}${v}/${locale}/${firstPage[v] ?? ''}/`;
+      versionUrls[v] = v === version ? (guideEntries[0]?.url ?? ROOT) : `${ROOT}${v}/${locale}/${firstPage[v] ?? ''}/`;
     }
-    const sections = [{ key: 'guides', url: menuItems[0]?.url ?? ROOT, active: true }] as any[];
-    for (const [key, p] of [['howTo', firstPage[version]]] as const) {
-      if (p) sections.push({ key, url: `${ROOT}${version}/${locale}/${p}/`, active: false });
-    }
+    const sections = [] as any[];
+    if (firstPage[version]) sections.push({ key: 'howTo', url: `${ROOT}${version}/${locale}/${firstPage[version]}/`, active: false });
+    sections.push({ key: 'guides', url: guideEntries[0]?.url ?? ROOT, active: true });
     if (explorerPath) sections.push({ key: 'explanation', url: `${ROOT}${explorerPath}`, active: false });
 
-    guides.forEach((g, i) => {
+    guides.forEach((g) => {
+      // Previous/next follow the menu's order within the guides (grouped by category), not the title order.
+      const i = guideEntries.findIndex((e) => e.id === g.id);
       const { html, headings } = renderGuide(g.body, slugs);
       paths.push({
         params: { version, locale, guideId: g.slug },
@@ -82,8 +86,8 @@ export async function getStaticPaths() {
           localeUrls: Object.fromEntries(locales.map((l) => [l, `${ROOT}${version}/${l}/guides/${g.slug}/`])),
           dir: localeData.dir ?? 'ltr',
           lang: localeData.locale ?? locale,
-          prevPage: menuItems[i - 1] ? { url: menuItems[i - 1].url, title: menuItems[i - 1].title } : null,
-          nextPage: menuItems[i + 1] ? { url: menuItems[i + 1].url, title: menuItems[i + 1].title } : null,
+          prevPage: guideEntries[i - 1] ? { url: guideEntries[i - 1].url, title: guideEntries[i - 1].title } : null,
+          nextPage: guideEntries[i + 1] ? { url: guideEntries[i + 1].url, title: guideEntries[i + 1].title } : null,
         },
       });
     });
