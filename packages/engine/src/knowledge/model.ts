@@ -59,7 +59,7 @@ export interface GraphNode {
   /** Present on derived procedures: the pageId used by the portal route. */
   pageId?: string;
   /** Present on guides: Diátaxis type and the declared verification state. */
-  guide?: Pick<GuideMeta, 'docType' | 'categories' | 'appliesTo'> & { verification: string };
+  guide?: Pick<GuideMeta, 'docType' | 'categories' | 'area' | 'appliesTo'> & { verification: string };
 }
 
 export interface GraphEdge {

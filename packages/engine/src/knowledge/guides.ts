@@ -35,6 +35,8 @@ const GuideFrontmatterSchema = z
     id: z.string().optional(),
     type: z.enum(DOC_TYPES),
     categories: z.array(z.enum(GUIDE_CATEGORIES)).default([]),
+    /** Functional area (e.g. Finance, People): the level above the category in the portal menu. Navigation only. */
+    area: z.string().min(1).optional(),
     /** Defaults to the first `#` heading. */
     title: z.string().min(1).optional(),
     summary: z.string().min(1).optional(),
@@ -73,6 +75,7 @@ const GuideFrontmatterSchema = z
 export type GuideMeta = {
   docType: DocType;
   categories: string[];
+  area?: string;
   audience: string[];
   prerequisites: string[];
   startingPoint?: string;
@@ -266,6 +269,7 @@ export function parseGuideFile(
   const meta: GuideMeta = {
     docType: fm.type,
     categories: [...fm.categories].sort(),
+    area: fm.area,
     audience: fm.audience,
     prerequisites: fm.prerequisites,
     startingPoint: fm.startingPoint,

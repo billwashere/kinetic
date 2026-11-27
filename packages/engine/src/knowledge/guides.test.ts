@@ -31,6 +31,13 @@ describe('parseGuideFile', () => {
     expect(r.node?.guide?.docType).toBe('explanation');
   });
 
+  it('reads an optional functional area and rejects an empty one', () => {
+    const ok = parseGuideFile(doc('type: how-to\narea: Finance', '# T\n\nBody.'), 'g/a.md', ctx());
+    expect(ok.node?.guide?.area).toBe('Finance');
+    expect(parseGuideFile(doc('type: how-to', '# T\n\nBody.'), 'g/a.md', ctx()).node?.guide?.area).toBeUndefined();
+    expect(codes(parseGuideFile(doc("type: how-to\narea: ''", '# T\n\nx'), 'g/a.md', ctx()))).toContain('invalid-frontmatter');
+  });
+
   it('turns related and follows into edges', () => {
     const r = parseGuideFile(doc('type: how-to\nfollows: [guide:x]\nrelated: [guide:y]', '# T\n\nBody.'), 'g/a.md', ctx());
     expect(r.node?.relationships.map((e) => e.type)).toEqual(['follows', 'related_to']);

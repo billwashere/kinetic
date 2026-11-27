@@ -88,6 +88,7 @@ export function validateKnowledge(input: KnowledgeInput): ValidationResult {
         guide: {
           docType: n.guide.docType,
           categories: n.guide.categories,
+          area: n.guide.area,
           appliesTo: n.guide.appliesTo,
           verification: n.guide.verification.status,
         },
