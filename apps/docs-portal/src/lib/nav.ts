@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
-import { dirs } from './workspace.mjs';
+import { dirs, workspace } from './workspace.mjs';
 import { groupGuides } from './guides';
 import type { GuideItem } from './knowledge';
 
@@ -12,12 +12,20 @@ export interface NavEntry {
   group: string;
   subgroup: string | null;
   section: string;
+  /** Functional area: a level between the section and the group. Absent when the entry has none. */
+  area?: string;
 }
+
+/**
+ * Functional area of a walkthrough group, from the workspace's `navAreas` map (group name → area), e.g.
+ * `{ "Accounting": "Finance" }`. Guides declare their own `area` in frontmatter instead.
+ */
+const walkthroughAreas: Record<string, string> = (workspace as any).navAreas ?? {};
 
 /** Guides as menu entries: one group per category. */
 export function guideNavEntries(guides: GuideItem[], url: (slug: string) => string, section: string): NavEntry[] {
   return groupGuides(guides).flatMap((grp) =>
-    grp.guides.map((g) => ({ id: g.id, title: g.title, url: url(g.slug), group: grp.label, subgroup: null, section })),
+    grp.guides.map((g) => ({ id: g.id, title: g.title, url: url(g.slug), group: grp.label, subgroup: null, section, area: g.area })),
   );
 }
 
@@ -40,6 +48,7 @@ export async function walkthroughNavEntries(
         group: crumbs[0] ?? '',
         subgroup: crumbs[1] ?? null,
         section,
+        area: walkthroughAreas[crumbs[0] ?? ''],
       };
     });
   } catch {

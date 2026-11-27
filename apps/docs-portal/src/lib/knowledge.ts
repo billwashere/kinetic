@@ -30,7 +30,7 @@ interface Node {
   id: string;
   kind: string;
   origin: string;
-  guide?: { docType: string; categories: string[]; appliesTo?: string; verification: string };
+  guide?: { docType: string; categories: string[]; area?: string; appliesTo?: string; verification: string };
 }
 
 export interface Knowledge {
@@ -104,6 +104,8 @@ export interface GuideItem {
   summary: string;
   docType: string;
   categories: string[];
+  /** Functional area from the guide's frontmatter; the menu groups guides under it. */
+  area?: string;
   appliesTo?: string;
   verification: string;
   body: string;
@@ -133,6 +135,7 @@ export function guidesFor(k: Knowledge, locale: string): GuideItem[] {
       summary: blurb(texts[n.id]?.summary ?? ''),
       docType: n.guide.docType,
       categories: n.guide.categories,
+      area: n.guide.area,
       appliesTo: n.guide.appliesTo,
       verification: n.guide.verification,
       body: k.bodies[n.id]?.body ?? '',
